@@ -2,6 +2,7 @@ use std::{
     cmp::PartialEq,
     collections::{HashMap, hash_map::Entry},
     ffi::CString,
+    fmt,
     fs::{self, DirEntry, FileType, create_dir, create_dir_all, read_dir, read_link},
     io,
     os::unix::fs::{FileTypeExt, MetadataExt, symlink},
@@ -122,6 +123,35 @@ struct Node {
     skip: bool,
 }
 
+impl fmt::Display for NodeFileType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Directory => write!(f, "Directory"),
+            Self::RegularFile => write!(f, "RegularFile"),
+            Self::Symlink => write!(f, "Symlink"),
+            Self::Whiteout => write!(f, "Whiteout"),
+        }
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "name: {} file_type: {} children: {:?} module_path: {} replace: {} skip: {}",
+            self.name,
+            self.file_type,
+            self.children,
+            if let Some(p) = &self.module_path {
+                p.to_string_lossy().to_string()
+            } else {
+                "None".to_string()
+            },
+            self.replace,
+            self.skip
+        )
+    }
+}
 impl Node {
     fn collect_module_files<T: AsRef<Path>>(&mut self, module_dir: T) -> Result<bool> {
         let dir = module_dir.as_ref();
@@ -218,7 +248,6 @@ fn collect_module_files(module_dir: &Path, extra_partitions: &[String]) -> Resul
     let mut system = Node::new_root("system");
     let module_root = module_dir;
     let mut has_file = false;
-    let module_system = module_root.join("system").is_dir();
 
     for entry in module_root.read_dir()?.flatten() {
         if !entry.file_type()?.is_dir() {
@@ -232,13 +261,14 @@ fn collect_module_files(module_dir: &Path, extra_partitions: &[String]) -> Resul
             continue;
         }
 
-        if !module_system {
+        let module_system = entry.path().join("system");
+        if !module_system.is_dir() {
             continue;
         }
 
         log::debug!("collecting {}", entry.path().display());
 
-        has_file |= system.collect_module_files(&mod_system)?;
+        has_file |= system.collect_module_files(&module_system)?;
     }
 
     if has_file {
@@ -560,7 +590,7 @@ pub fn magic_mount<T: AsRef<Path>>(
     extra_partitions: &[String],
 ) -> Result<()> {
     if let Some(root) = collect_module_files(module_dir, extra_partitions)? {
-        log::debug!("collected: {:#?}", root);
+        log::debug!("collected: {}", root);
 
         let tmp_root = tmp_path.as_ref();
         let tmp_dir = tmp_root.join("workdir");
