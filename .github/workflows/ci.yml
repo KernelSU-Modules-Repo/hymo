@@ -39,11 +39,17 @@ jobs:
           sudo apt update
           sudo apt install -y gcc-multilib
           cargo install cargo-ndk --locked
+      - name: Setup Webui deps
+        run: |
+          cd webui/
+          npm install
       - name: Build
         run: |
           export ANDROID_NDK_HOME=$(realpath ~/ndk_temp)
           export ANDROID_NDK_ROOT=$ANDROID_NDK_HOME
           cargo ndk -t arm64-v8a b -r
+          cd webui/
+          npm run build
           cp ./target/aarch64-linux-android/release/magic_mount_rs ./module/
           cd module/
       - name: Upload release version
