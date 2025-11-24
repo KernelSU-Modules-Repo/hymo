@@ -77,6 +77,7 @@ fn main() -> Result<()> {
 
     let mut config = load_config(&cli)?;
     config.merge_with_cli(cli.moduledir, cli.tempdir, cli.mountsource, cli.verbose, cli.partitions);
+    // 这里使用了修改后的 utils::init_logger
     utils::init_logger(config.verbose)?;
 
     log::info!("Hybrid Mount Starting...");
@@ -84,9 +85,31 @@ fn main() -> Result<()> {
     // 1. Load Module Modes (User Config)
     let module_modes = config::load_module_modes();
 
-    // 2. Scan Enabled Modules (From Metadata Dir)
-    let enabled_module_ids = scan_enabled_module_ids(Path::new(defs::MODULE_METADATA_DIR))?;
-    log::info!("Found {} enabled modules", enabled_module_ids.len());
+    // --- 修改开始: 使用 HashMap 存储所有有效的模块及其路径 ---
+    let mut active_modules: HashMap<String, PathBuf> = HashMap::new();
+
+    // 1.1 扫描标准模块目录 (Standard Modules)
+    // 这些模块位于 /data/adb/modules，需要检查 disable/remove 文件
+    let std_module_ids = scan_enabled_module_ids(Path::new(defs::MODULE_METADATA_DIR))?;
+    for id in std_module_ids {
+        let path = Path::new(defs::MODULE_CONTENT_DIR).join(&id);
+        active_modules.insert(id, path);
+    }
+
+    let mnt_base_dir = Path::new(defs::MODULE_CONTENT_DIR).join("meta-hybrid/mnt");
+    if mnt_base_dir.exists() {
+        log::debug!("Scanning mnt directory: {}", mnt_base_dir.display());
+        if let Ok(entries) = fs::read_dir(&mnt_base_dir) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    let id = entry.file_name().to_string_lossy().to_string();
+                    active_modules.entry(id).or_insert(entry.path());
+                }
+            }
+        }
+    }
+
+    log::info!("Found {} enabled modules (Standard + Mnt)", active_modules.len());
 
     // 3. Group by Partition & Decide Mode
     let mut partition_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
@@ -97,9 +120,7 @@ fn main() -> Result<()> {
     let extra_parts: Vec<&str> = config.partitions.iter().map(|s| s.as_str()).collect();
     all_partitions.extend(extra_parts);
 
-    for module_id in enabled_module_ids {
-        let content_path = Path::new(defs::MODULE_CONTENT_DIR).join(&module_id);
-        
+    for (module_id, content_path) in active_modules {
         if !content_path.exists() {
             log::debug!("Module {} content missing at {}", module_id, content_path.display());
             continue;
@@ -191,7 +212,7 @@ fn scan_enabled_module_ids(metadata_dir: &Path) -> Result<Vec<String>> {
         let path = entry.path();
         if path.is_dir() {
             let id = entry.file_name().to_string_lossy().to_string();
-            if id == "meta-hybrid" || id == "meta-overlayfs" || id == "magic_mount" { continue; }
+            if id == "meta-hybrid" { continue; }
             if path.join(defs::DISABLE_FILE_NAME).exists() || 
                path.join(defs::REMOVE_FILE_NAME).exists() || 
                path.join(defs::SKIP_MOUNT_FILE_NAME).exists() {
