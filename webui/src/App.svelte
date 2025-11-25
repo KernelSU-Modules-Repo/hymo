@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { exec } from 'kernelsu';
   import { fade, fly } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
+  import { cubicOut, cubicIn } from 'svelte/easing';
   import locate from './locate.json';
   import './app.css';
 
@@ -27,8 +27,7 @@
     refresh: "M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z",
     translate: "M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z",
     light_mode: "M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z",
-    dark_mode: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z",
-    extension: "M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.38 0 2.5 1.12 2.5 2.5s-1.12 2.5-2.5 2.5H2v2c0 1.1.9 2 2 2h3.8c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"
+    dark_mode: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"
   };
 
   let lang = 'en';
@@ -54,7 +53,6 @@
   let loading = { config: false, modules: false, logs: false };
   let saving = { config: false, modules: false };
   let messages = { text: '', type: 'info', visible: false };
-
   let logLines = [];
 
   function showMessage(msg, type='info') {
@@ -137,10 +135,11 @@
 
       const dir = config.moduledir || DEFAULT_CONFIG.moduledir;
       const imgDir = IMAGE_MNT_PATH;
-      
       const cmd = `
-        cd "${dir}" && for d in *; do
-          if [ -d "$d" ] && [ ! -f "$d/disable" ] && [ ! -f "$d/skip_mount" ] && [ ! -f "$d/remove" ]; then
+        cd "${dir}" && for d in *;
+        do
+          if [ -d "$d" ] && [ ! -f "$d/disable" ] && [ ! -f "$d/skip_mount" ] && [ ! -f "$d/remove" ];
+          then
              HAS_CONTENT=false
              if [ -d "$d/system" ] || [ -d "$d/vendor" ] || [ -d "$d/product" ] || [ -d "$d/system_ext" ] || [ -d "$d/odm" ] || [ -d "$d/oem" ]; then
                HAS_CONTENT=true
@@ -154,7 +153,6 @@
           fi
         done
       `;
-      
       const { errno, stdout } = await exec(cmd);
       if (errno === 0) {
         modules = stdout.split('\n')
@@ -201,14 +199,13 @@
     try {
       const f = config.logfile || DEFAULT_CONFIG.logfile;
       const { errno, stdout, stderr } = await exec(`[ -f "${f}" ] && cat "${f}" || echo ""`);
-      
       if (errno === 0 && stdout) {
         logLines = parseLogs(stdout);
       } else {
         logLines = [{ text: stdout || stderr || L.logs.empty, type: 'debug' }];
       }
     } catch (e) { 
-      showMessage(L.logs.readException, 'error'); 
+      showMessage(L.logs.readException, 'error');
     }
     loading.logs = false;
   }
@@ -238,12 +235,12 @@
 <div class="app-root">
   <header class="app-bar">
     <div class="app-bar-content">
-      <h1 class="screen-title">Hybrid Mount</h1>
+      <h1 class="screen-title">{L.common.appName}</h1>
       <div class="top-actions">
-        <button class="btn-icon" on:click={toggleTheme} title="Toggle Theme">
+        <button class="btn-icon" on:click={toggleTheme} title={L.common.theme}>
           <svg viewBox="0 0 24 24"><path d={theme === 'light' ? icons.dark_mode : icons.light_mode} fill="currentColor"/></svg>
         </button>
-        <button class="btn-icon" on:click={() => showLangMenu = !showLangMenu} title="Language">
+        <button class="btn-icon" on:click={() => showLangMenu = !showLangMenu} title={L.common.language}>
           <svg viewBox="0 0 24 24"><path d={icons.translate} fill="currentColor"/></svg>
         </button>
       </div>
@@ -288,7 +285,7 @@
               <label for="c-moduledir">{L.config.moduleDir}</label>
             </div>
             <div class="text-field">
-              <input type="text" id="c-tempdir" bind:value={config.tempdir} placeholder="Auto" />
+              <input type="text" id="c-tempdir" bind:value={config.tempdir} placeholder={L.config.autoPlaceholder} />
               <label for="c-tempdir">{L.config.tempDir}</label>
             </div>
             <div class="text-field">
@@ -310,7 +307,7 @@
 
           {#if modules.length === 0}
             <div style="text-align:center; padding: 40px; opacity: 0.6">
-              {loading.modules ? 'Scanning...' : L.modules.empty}
+              {loading.modules ? L.modules.scanning : L.modules.empty}
             </div>
           {:else}
             <div class="rules-list">
@@ -322,8 +319,8 @@
                   </div>
                   <div class="text-field" style="margin-bottom:0; width: 140px; flex-shrink: 0;">
                     <select bind:value={mod.mode}>
-                      <option value="auto">Auto</option>
-                      <option value="magic">Magic</option>
+                      <option value="auto">{L.modules.modeAuto}</option>
+                      <option value="magic">{L.modules.modeMagic}</option>
                     </select>
                   </div>
                 </div>
@@ -334,7 +331,7 @@
         {:else if activeTab === 'logs'}
           <div class="log-container">
             {#if loading.logs}
-              <div style="padding: 20px; text-align: center;">Loading logs...</div>
+              <div style="padding: 20px; text-align: center;">{L.logs.loading}</div>
             {:else if logLines.length === 0}
               <div style="padding: 20px; text-align: center;">{L.logs.empty}</div>
             {:else}
@@ -355,7 +352,7 @@
       <button class="btn-tonal" on:click={loadConfig} disabled={loading.config}>{L.config.reload}</button>
       <button class="btn-filled" on:click={saveConfig} disabled={saving.config}>
         <svg viewBox="0 0 24 24" width="18" height="18"><path d={icons.save} fill="currentColor"/></svg>
-        {saving.config ? 'Saving...' : L.config.save}
+        {saving.config ? L.common.saving : L.config.save}
       </button>
     </div>
   {:else if activeTab === 'modules'}
@@ -365,7 +362,7 @@
       </button>
       <button class="btn-filled" on:click={saveModules} disabled={saving.modules}>
         <svg viewBox="0 0 24 24" width="18" height="18"><path d={icons.save} fill="currentColor"/></svg>
-        {saving.modules ? 'Saving...' : L.modules.save}
+        {saving.modules ? L.common.saving : L.modules.save}
       </button>
     </div>
   {:else if activeTab === 'logs'}

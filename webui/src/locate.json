@@ -1,5 +1,11 @@
 {
   "en": {
+    "common": {
+      "appName": "Hybrid Mount",
+      "saving": "Saving...",
+      "theme": "Toggle Theme",
+      "language": "Language"
+    },
     "lang": { "display": "English" },
     "tabs": {
       "config": "Config",
@@ -16,6 +22,7 @@
       "mountSource": "Mount Source",
       "logFile": "Log File",
       "partitions": "Partitions",
+      "autoPlaceholder": "Auto",
       "reload": "Reload",
       "save": "Save",
       "loadSuccess": "Config loaded",
@@ -29,6 +36,7 @@
       "desc": "Choose 'Magic Mount' if a module causes bootloops or issues with OverlayFS.",
       "modeAuto": "Auto (OverlayFS)",
       "modeMagic": "Magic Mount",
+      "scanning": "Scanning...",
       "reload": "Refresh",
       "save": "Save Modes",
       "empty": "No enabled modules found",
@@ -41,6 +49,7 @@
       "select": "File",
       "current": "Current",
       "old": "Previous",
+      "loading": "Loading logs...",
       "refresh": "Refresh",
       "empty": "Log is empty",
       "readFailed": "Read failed",
@@ -48,6 +57,12 @@
     }
   },
   "zh": {
+    "common": {
+      "appName": "Hybrid Mount",
+      "saving": "保存中...",
+      "theme": "切换主题",
+      "language": "语言"
+    },
     "lang": { "display": "中文" },
     "tabs": {
       "config": "配置",
@@ -64,6 +79,7 @@
       "mountSource": "挂载源名",
       "logFile": "日志文件",
       "partitions": "额外分区",
+      "autoPlaceholder": "自动",
       "reload": "重载",
       "save": "保存",
       "loadSuccess": "配置已加载",
@@ -77,6 +93,7 @@
       "desc": "如果模块导致无限重启或 OverlayFS 异常，请尝试切换为 Magic Mount。",
       "modeAuto": "自动 (OverlayFS)",
       "modeMagic": "Magic Mount",
+      "scanning": "扫描中...",
       "reload": "刷新",
       "save": "保存配置",
       "empty": "未找到已启用的模块",
@@ -89,6 +106,7 @@
       "select": "文件",
       "current": "当前日志",
       "old": "历史日志",
+      "loading": "日志加载中...",
       "refresh": "刷新",
       "empty": "日志为空",
       "readFailed": "读取失败",
