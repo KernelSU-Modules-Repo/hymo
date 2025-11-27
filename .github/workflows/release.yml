@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -30,6 +31,24 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r26b
+
+      # [DISABLED] Cache Zakosign Build
+      # - name: Cache Zakosign Build
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       zakosign/boringssl/build-host
+      #       zakosign/obj
+      #       zakosign/bin
+      #     key: ${{ runner.os }}-zakosign-host-${{ hashFiles('zakosign/Makefile', 'zakosign/.gitmodules') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-zakosign-host-
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          # [DISABLED] zakosign deps
+          # sudo apt-get install -y ninja-build clang cmake
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
@@ -57,7 +76,6 @@ jobs:
           cd webui
           npm install
 
-      # --- 动态修改 module.prop ---
       - name: Update Module Version
         run: |
           PROP_FILE="module/module.prop"
@@ -73,10 +91,24 @@ jobs:
           
           cat "$PROP_FILE"
 
+      # [DISABLED] Prepare Signing Key
+      # - name: Prepare Signing Key
+      #   id: key_prep
+      #   env:
+      #     ZAKOSIGN_KEY_CONTENT: ${{ secrets.ZAKOSIGN_KEY }}
+      #   run: |
+      #     if [ -n "$ZAKOSIGN_KEY_CONTENT" ]; then
+      #       echo "$ZAKOSIGN_KEY_CONTENT" > /tmp/private.pem
+      #       echo "has_key=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "No signing key found in secrets."
+      #       echo "has_key=false" >> $GITHUB_OUTPUT
+      #     fi
+
       - name: Build Project
         run: |
-          # 运行 xbuild
-          cargo run -p xbuild --release
+          echo "Building without signature (Zakosign disabled)..."
+          cargo run -p xtask -- build --release
 
       - name: Generate Update Files
         id: meta

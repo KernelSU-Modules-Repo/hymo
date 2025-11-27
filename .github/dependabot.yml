@@ -1,17 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "cargo"
+    directory: "/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/xbuild" # Location of package manifests
+  - package-ecosystem: "cargo"
+    directory: "/xtask"
     schedule:
       interval: "weekly"
-  # Enable version updates for npm
   - package-ecosystem: "npm"
-    # Look for `package.json` and `lock` files in the `root` directory
     directory: "/webui"
-    # Check the npm registry for updates every day (weekdays)
     schedule:
       interval: "weekly"
