@@ -54,6 +54,7 @@ fn main() -> Result<()> {
             build_webui(&root)?;
 
             // 3. Build Zakosign (Host Tool)
+            // 这一步现在会正确地先编译依赖，再配置 Host 环境
             let zakosign_bin = build_zakosign(&root)?;
 
             // 4. Build Core (Android)
@@ -68,7 +69,7 @@ fn main() -> Result<()> {
                 &dir::CopyOptions::new().overwrite(true).content_only(true),
             )?;
             
-            // Cleanup gitignore if copied
+            // Cleanup gitignore
             let gitignore = module_build_dir.join(".gitignore");
             if gitignore.exists() { fs::remove_file(gitignore)?; }
 
@@ -83,7 +84,6 @@ fn main() -> Result<()> {
             if let Some(zakosign) = zakosign_bin {
                 if let Some(key) = resolve_sign_key(sign_key) {
                     println!(":: Signing meta-hybrid binary...");
-                    // Make binary executable just in case
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
@@ -178,10 +178,8 @@ fn build_zakosign(root: &Path) -> Result<Option<PathBuf>> {
 
     println!(":: Building Zakosign (Host)...");
     
-    // 1. Run setupdep for host if needed
     let setup_script = zakosign_dir.join("tools/setupdep");
     if setup_script.exists() {
-        // Make script executable
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -192,16 +190,30 @@ fn build_zakosign(root: &Path) -> Result<Option<PathBuf>> {
             }
         }
 
-        let status = Command::new(&setup_script)
+        println!(":: [Zakosign] Compiling dependencies...");
+        let status_build = Command::new(&setup_script)
+            .current_dir(&zakosign_dir)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()?;
+        if !status_build.success() { 
+            anyhow::bail!("zakosign setupdep (build) failed"); 
+        }
+
+        println!(":: [Zakosign] Configuring host environment...");
+        let status_host = Command::new(&setup_script)
             .current_dir(&zakosign_dir)
             .arg("host")
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()?;
-        if !status.success() { anyhow::bail!("zakosign setupdep failed"); }
+        if !status_host.success() { 
+            anyhow::bail!("zakosign setupdep (host) failed"); 
+        }
     }
 
-    // 2. Run Make
+    // 3. Run Make
+    println!(":: [Zakosign] Compiling binary...");
     let status = Command::new("make")
         .current_dir(&zakosign_dir)
         .stdout(Stdio::inherit())
@@ -229,7 +241,6 @@ fn build_core(root: &Path, release: bool) -> Result<PathBuf> {
         cmd.arg("--release");
     }
     
-    // Set necessary flags for Rust + Android
     cmd.env("RUSTFLAGS", "-C default-linker-libraries");
     
     let status = cmd.status()?;
