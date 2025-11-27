@@ -39,7 +39,6 @@ fn main() -> Result<()> {
     let root = project_root();
 
     match cli.command {
-        // We ignore sign_key with `_` since zakosign is disabled
         Commands::Build { release, sign_key: _ } => {
             let output_dir = root.join("output");
             let module_build_dir = output_dir.join("module_files");
@@ -66,7 +65,7 @@ fn main() -> Result<()> {
             let module_src = root.join("module");
             dir::copy(
                 &module_src,
-                &output_dir,
+                &module_build_dir, 
                 &dir::CopyOptions::new().overwrite(true).content_only(true),
             )?;
             
@@ -96,6 +95,7 @@ fn main() -> Result<()> {
             let zip_name = format!("meta-hybrid-{}.zip", version);
             let zip_path = output_dir.join(zip_name);
             
+            // Zip creates from module_build_dir, so files MUST be there
             zip_create_from_directory_with_options(
                 &zip_path,
                 &module_build_dir,
@@ -198,3 +198,4 @@ fn inject_version(target_dir: &Path) -> Result<String> {
     
     Ok(full_version)
 }
+
