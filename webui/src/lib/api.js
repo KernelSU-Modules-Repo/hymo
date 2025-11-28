@@ -114,6 +114,28 @@ export const API = {
     throw new Error(stdout || stderr || "Log file empty or not found");
   },
 
+  getStorageUsage: async () => {
+    // Check modules.img mount point usage
+    const mntPath = PATHS.IMAGE_MNT;
+    try {
+      const { stdout } = await exec(`df -h "${mntPath}" | tail -n 1`);
+      // Example output: /dev/loop1       1.9G   12M  1.8G   1% /data/adb/meta-hybrid/mnt
+      // Columns: Filesystem(0) Size(1) Used(2) Avail(3) Use%(4) Mounted on(5)
+      const parts = stdout.trim().split(/\s+/);
+      if (parts.length >= 5) {
+        return {
+          size: parts[1],
+          used: parts[2],
+          avail: parts[3],
+          percent: parts[4]
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
+    return { size: '-', used: '-', avail: '-', percent: '0%' };
+  },
+
   fetchSystemColor: async () => {
     try {
       const { stdout } = await exec('settings get secure theme_customization_overlay_packages');

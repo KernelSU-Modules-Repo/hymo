@@ -8,9 +8,19 @@
     },
     "lang": { "display": "English" },
     "tabs": {
+      "status": "Status",
       "config": "Config",
       "modules": "Modules",
       "logs": "Logs"
+    },
+    "status": {
+      "storageTitle": "Storage",
+      "storageDesc": "Usage of modules.img",
+      "moduleTitle": "Modules",
+      "moduleActive": "Active Modules",
+      "modeStats": "Mode Statistics",
+      "modeAuto": "OverlayFS",
+      "modeMagic": "Magic Mount"
     },
     "config": {
       "title": "Configuration",
@@ -81,9 +91,19 @@
     },
     "lang": { "display": "中文" },
     "tabs": {
+      "status": "状态",
       "config": "配置",
       "modules": "模块",
       "logs": "日志"
+    },
+    "status": {
+      "storageTitle": "存储空间",
+      "storageDesc": "modules.img 使用情况",
+      "moduleTitle": "模块概览",
+      "moduleActive": "活跃模块",
+      "modeStats": "模式统计",
+      "modeAuto": "OverlayFS",
+      "modeMagic": "Magic Mount"
     },
     "config": {
       "title": "配置",
@@ -154,9 +174,19 @@
     },
     "lang": { "display": "日本語" },
     "tabs": {
+      "status": "ステータス",
       "config": "設定",
       "modules": "モジュール",
       "logs": "ログ"
+    },
+    "status": {
+      "storageTitle": "ストレージ",
+      "storageDesc": "modules.img の使用状況",
+      "moduleTitle": "モジュール",
+      "moduleActive": "有効なモジュール",
+      "modeStats": "モード統計",
+      "modeAuto": "OverlayFS",
+      "modeMagic": "Magic Mount"
     },
     "config": {
       "title": "設定",
@@ -227,9 +257,19 @@
     },
     "lang": { "display": "Русский" },
     "tabs": {
+      "status": "Статус",
       "config": "Конфиг",
       "modules": "Модули",
       "logs": "Логи"
+    },
+    "status": {
+      "storageTitle": "Хранилище",
+      "storageDesc": "Использование modules.img",
+      "moduleTitle": "Модули",
+      "moduleActive": "Активные модули",
+      "modeStats": "Статистика",
+      "modeAuto": "OverlayFS",
+      "modeMagic": "Magic Mount"
     },
     "config": {
       "title": "Конфигурация",
