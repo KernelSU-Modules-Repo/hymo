@@ -63,12 +63,10 @@ export const API = {
 
   readLogs: async (logPath, lines = 1000) => {
     const f = logPath || DEFAULT_CONFIG.logfile;
-    // Use tail to prevent loading massive files, limiting to last N lines
     const cmd = `[ -f "${f}" ] && tail -n ${lines} "${f}" || echo ""`;
     const { errno, stdout, stderr } = await exec(cmd);
     
     if (errno === 0) return stdout || "";
-    // Throw actual error if reading failed (permission denied, etc)
     throw new Error(stderr || "Log file not found or unreadable");
   },
 
@@ -83,13 +81,14 @@ export const API = {
           size: data.size || '-',
           used: data.used || '-',
           avail: data.avail || '-', 
-          percent: data.percent || '0%'
+          percent: data.percent || '0%',
+          type: data.type || null // New field: fs_type from backend
         };
       }
     } catch (e) {
       console.error("Storage check failed:", e);
     }
-    return { size: '-', used: '-', percent: '0%' };
+    return { size: '-', used: '-', percent: '0%', type: null };
   },
 
   fetchSystemColor: async () => {

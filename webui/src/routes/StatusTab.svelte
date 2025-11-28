@@ -12,7 +12,16 @@
 <div class="dashboard-grid">
   <div class="storage-card">
     <div class="storage-header">
-      <span class="storage-title">{store.L.status.storageTitle}</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="storage-title">{store.L.status.storageTitle}</span>
+        
+        {#if store.storage.type}
+          <span class="storage-type-badge {store.storage.type === 'tmpfs' ? 'type-tmpfs' : 'type-ext4'}">
+            {store.storage.type.toUpperCase()}
+          </span>
+        {/if}
+      </div>
+      
       <div class="storage-value">
         {store.storage.percent}
       </div>

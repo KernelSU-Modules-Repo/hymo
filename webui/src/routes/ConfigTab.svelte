@@ -3,11 +3,26 @@
   import { ICONS, DEFAULT_CONFIG } from '../lib/constants';
   
   import './ConfigTab.css';
+  
   let partitionInput = $state(store.config.partitions.join(', '));
 
+  // Validation Helpers
+  const isValidPath = (p) => !p || (p.startsWith('/') && p.length > 1);
+  
+  let invalidModuleDir = $derived(!isValidPath(store.config.moduledir));
+  let invalidTempDir = $derived(store.config.tempdir && !isValidPath(store.config.tempdir));
+
   function save() {
+    if (invalidModuleDir || invalidTempDir) {
+      store.showToast("Invalid path detected", "error");
+      return;
+    }
     store.config.partitions = partitionInput.split(',').map(s => s.trim()).filter(Boolean);
     store.saveConfig();
+  }
+  
+  function resetTempDir() {
+    store.config.tempdir = "";
   }
 </script>
 
@@ -38,14 +53,22 @@
 </div>
 
 <div class="md3-card">
-  <div class="text-field">
+  <div class="text-field" class:error={invalidModuleDir}>
     <input type="text" id="c-moduledir" bind:value={store.config.moduledir} placeholder={DEFAULT_CONFIG.moduledir} />
     <label for="c-moduledir">{store.L.config.moduleDir}</label>
   </div>
-  <div class="text-field">
+  
+  <div class="text-field" class:error={invalidTempDir} style="display:flex; align-items:center;">
     <input type="text" id="c-tempdir" bind:value={store.config.tempdir} placeholder={store.L.config.autoPlaceholder} />
     <label for="c-tempdir">{store.L.config.tempDir}</label>
+    
+    {#if store.config.tempdir}
+      <button class="icon-reset" onclick={resetTempDir} title="Reset to Auto">
+        ✕
+      </button>
+    {/if}
   </div>
+  
   <div class="text-field">
     <input type="text" id="c-mountsource" bind:value={store.config.mountsource} placeholder={DEFAULT_CONFIG.mountsource} />
     <label for="c-mountsource">{store.L.config.mountSource}</label>

@@ -51,3 +51,34 @@
   bottom: 4px;
   left: 4px;
 }
+
+/* Input Validation & Reset Button Styles (Added) */
+.text-field.error input {
+  border-color: var(--md-sys-color-error);
+  color: var(--md-sys-color-error);
+}
+
+.text-field.error label {
+  color: var(--md-sys-color-error);
+}
+
+.icon-reset {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--md-sys-color-outline);
+  font-size: 14px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 5;
+}
+
+.icon-reset:hover {
+  background-color: var(--md-sys-color-surface-variant);
+}

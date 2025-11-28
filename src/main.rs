@@ -1,4 +1,3 @@
-// meta-hybrid_mount/src/main.rs
 mod config;
 mod defs;
 mod utils;
@@ -17,6 +16,7 @@ use clap::{Parser, Subcommand};
 use config::{Config, CONFIG_FILE_DEFAULT};
 use rustix::mount::{unmount, UnmountFlags};
 use serde::Serialize;
+use procfs::process::Process;
 
 #[derive(Parser, Debug)]
 #[command(name = "meta-hybrid", version, about = "Hybrid Mount Metamodule")]
@@ -317,13 +317,31 @@ fn check_storage() -> Result<()> {
         return Ok(());
     }
 
+    // Determine filesystem type from mountinfo
+    let mut fs_type = "unknown".to_string();
+    if let Ok(mounts) = Process::myself().and_then(|p| p.mountinfo()) {
+        for m in mounts.0 {
+            if m.mount_point == path {
+                fs_type = m.fs_type;
+                break;
+            }
+        }
+    }
+
     let stats = rustix::fs::statvfs(&path).context("statvfs failed")?;
     let block_size = stats.f_frsize as u64;
     let total_bytes = stats.f_blocks as u64 * block_size;
     let free_bytes = stats.f_bfree as u64 * block_size;
     let used_bytes = total_bytes.saturating_sub(free_bytes);
     let percent = if total_bytes > 0 { (used_bytes as f64 / total_bytes as f64) * 100.0 } else { 0.0 };
-    println!("{{ \"size\": \"{}\", \"used\": \"{}\", \"percent\": \"{:.0}%\" }}", format_size(total_bytes), format_size(used_bytes), percent);
+    
+    println!(
+        "{{ \"size\": \"{}\", \"used\": \"{}\", \"percent\": \"{:.0}%\", \"type\": \"{}\" }}",
+        format_size(total_bytes),
+        format_size(used_bytes),
+        percent,
+        fs_type
+    );
     Ok(())
 }
 
@@ -377,6 +395,7 @@ fn run() -> Result<()> {
         match command {
             Commands::GenConfig { output } => { Config::default().save_to_file(output)?; return Ok(()); },
             Commands::ShowConfig => { 
+                // Changed: Output JSON instead of Debug struct
                 let config = load_config(&cli)?;
                 println!("{}", serde_json::to_string(&config)?); 
                 return Ok(()); 
@@ -438,7 +457,7 @@ fn run() -> Result<()> {
     let extra_parts: Vec<&str> = config.partitions.iter().map(|s| s.as_str()).collect();
     all_partitions.extend(extra_parts);
 
-    // [FIX] Iterate by reference using &active_modules
+    // Iterate by reference using &active_modules
     for (module_id, content_path) in &active_modules {
         let mode = module_modes.get(module_id).map(|s| s.as_str()).unwrap_or("auto");
         if mode == "magic" {
@@ -464,7 +483,7 @@ fn run() -> Result<()> {
         }
     }
 
-    // [FIX] Capture count before move
+    // Capture count before move
     let magic_count = magic_mount_modules.len();
 
     // Phase B: Magic Mount
