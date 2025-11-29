@@ -614,8 +614,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "magic_mount_rs"
-version = "0.2.2"
+name = "hybrid_mount"
+version = "0.2.6"
 dependencies = [
  "android_logger",
  "anyhow",
