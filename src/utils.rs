@@ -80,7 +80,6 @@ pub fn lsetfilecon<P: AsRef<Path>>(path: P, con: &str) -> Result<()> {
     {
         if let Err(e) = lsetxattr(&path, SELINUX_XATTR, con, XattrFlags::empty()) {
             let io_err = std::io::Error::from(e);
-            // Log debug for permission denied as it's common on some FS
             log::debug!("lsetfilecon: {} -> {} failed: {}", path.as_ref().display(), con, io_err);
         }
     }
@@ -113,7 +112,6 @@ pub fn ensure_dir_exists<T: AsRef<Path>>(dir: T) -> Result<()> {
 /// Camouflage the current process name to look like a kernel worker
 pub fn camouflage_process(name: &str) -> Result<()> {
     let c_name = CString::new(name)?;
-    // Use raw prctl to set the process name (PR_SET_NAME = 15)
     unsafe {
         libc::prctl(libc::PR_SET_NAME, c_name.as_ptr() as u64, 0, 0, 0);
     }
@@ -171,7 +169,6 @@ pub fn find_decoy_mount_point() -> Option<PathBuf> {
              return Some(dev_decoy);
         }
     } else {
-        // If it miraculously exists (or collision), reuse it
         return Some(dev_decoy);
     }
 
@@ -221,7 +218,6 @@ pub fn sync_dir(src: &Path, dst: &Path) -> Result<()> {
     if !src.exists() { return Ok(()); }
     ensure_dir_exists(dst)?;
 
-    // log::debug!("Copying {} to {}", src.display(), dst.display());
     let status = Command::new("cp")
         .arg("-af")
         .arg(format!("{}/.", src.display()))
@@ -299,7 +295,6 @@ impl ScopedKptrRestrict {
         let path = "/proc/sys/kernel/kptr_restrict";
         let original = fs::read_to_string(path).unwrap_or_else(|_| "2".to_string()).trim().to_string();
         
-        // Set to 0 to expose symbols
         if let Err(e) = fs::write(path, "0") {
             log::warn!("Failed to lower kptr_restrict: {}", e);
         } else {
@@ -321,11 +316,14 @@ impl Drop for ScopedKptrRestrict {
     }
 }
 
-// --- Try Umount Logic (KSU Style) ---
+// --- KSU Calls & Ioctl Logic ---
 
 const KSU_INSTALL_MAGIC1: u32 = 0xDEADBEEF;
-const KSU_IOCTL_ADD_TRY_UMOUNT: u32 = 0x40004b12;
 const KSU_INSTALL_MAGIC2: u32 = 0xCAFEBABE;
+
+// IOCTL Commands (from ksucalls.rs)
+const KSU_IOCTL_NUKE_EXT4_SYSFS: u32 = 0x40004b11; // _IOC(_IOC_WRITE, 'K', 17, 0)
+const KSU_IOCTL_ADD_TRY_UMOUNT: u32 = 0x40004b12; // _IOC(_IOC_WRITE, 'K', 18, 0)
 
 static DRIVER_FD: OnceLock<RawFd> = OnceLock::new();
 
@@ -334,6 +332,11 @@ struct KsuAddTryUmount {
     arg: u64,
     flags: u32,
     mode: u8,
+}
+
+#[repr(C)]
+struct NukeExt4SysfsCmd {
+    arg: u64,
 }
 
 fn grab_fd() -> i32 {
@@ -355,11 +358,11 @@ pub fn send_unmountable<P>(target: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    use rustix::path::Arg;
-
     let path_ref = target.as_ref();
-    let path_str = path_ref.as_str()?;
+    let path_str = path_ref.as_str().unwrap_or_default(); // Avoid Result unwrap panic risk
     
+    if path_str.is_empty() { return Ok(()); }
+
     let path = CString::new(path_str)?;
     let cmd = KsuAddTryUmount {
         arg: path.as_ptr() as u64,
@@ -368,18 +371,14 @@ where
     };
     let fd = *DRIVER_FD.get_or_init(grab_fd);
 
+    if fd < 0 { return Ok(()); }
+
     unsafe {
         #[cfg(target_env = "gnu")]
-        let ret = libc::ioctl(fd as libc::c_int, KSU_IOCTL_ADD_TRY_UMOUNT as u64, &cmd);
+        let _ = libc::ioctl(fd as libc::c_int, KSU_IOCTL_ADD_TRY_UMOUNT as u64, &cmd);
 
         #[cfg(not(target_env = "gnu"))]
-        let ret = libc::ioctl(fd as libc::c_int, KSU_IOCTL_ADD_TRY_UMOUNT as i32, &cmd);
-
-        if ret < 0 {
-            // Optional: log debug but don't error out if KSU is not present
-            // use std::io;
-            // log::debug!("send_unmountable failed: {}", io::Error::last_os_error());
-        }
+        let _ = libc::ioctl(fd as libc::c_int, KSU_IOCTL_ADD_TRY_UMOUNT as i32, &cmd);
     };
 
     Ok(())
@@ -388,4 +387,37 @@ where
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 pub fn send_unmountable<P>(_target: P) -> Result<()> {
     Ok(())
+}
+
+// SukiSU-Ultra style nuke_ext4_sysfs via ioctl
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub fn ksu_nuke_sysfs(target: &str) -> Result<()> {
+    let c_path = CString::new(target)?;
+    let cmd = NukeExt4SysfsCmd {
+        arg: c_path.as_ptr() as u64,
+    };
+    
+    let fd = *DRIVER_FD.get_or_init(grab_fd);
+    if fd < 0 {
+        bail!("KSU driver not available");
+    }
+
+    let ret = unsafe {
+        #[cfg(target_env = "gnu")]
+        let r = libc::ioctl(fd as libc::c_int, KSU_IOCTL_NUKE_EXT4_SYSFS as u64, &cmd);
+        #[cfg(not(target_env = "gnu"))]
+        let r = libc::ioctl(fd as libc::c_int, KSU_IOCTL_NUKE_EXT4_SYSFS as i32, &cmd);
+        r
+    };
+
+    if ret != 0 {
+        bail!("ioctl failed with code {}", ret);
+    }
+
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+pub fn ksu_nuke_sysfs(_target: &str) -> Result<()> {
+    bail!("Not supported on this OS")
 }

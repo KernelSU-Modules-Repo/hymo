@@ -12,8 +12,9 @@ fn get_android_version() -> Option<String> {
     String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
 }
 
-pub fn try_load(mnt_point: &Path) -> bool {
-    log::info!("Attempting to load Nuke LKM for stealth...");
+/// Fallback: Attempt to load Nuke LKM directly
+fn try_lkm_load(mnt_point: &Path) -> bool {
+    log::info!("Attempting to load Nuke LKM for stealth (Fallback method)...");
     
     let uname = match utils::get_kernel_release() {
         Ok(v) => v,
@@ -22,7 +23,6 @@ pub fn try_load(mnt_point: &Path) -> bool {
             return false;
         }
     };
-    log::info!("Kernel release: {}", uname);
 
     let lkm_dir = Path::new(defs::MODULE_LKM_DIR);
     if !lkm_dir.exists() {
@@ -45,7 +45,7 @@ pub fn try_load(mnt_point: &Path) -> bool {
         }
     }
 
-    // 1. Try exact match with Android version
+    // 1. Try exact match
     if !android_ver.is_empty() {
         let pattern_android = format!("android{}", android_ver);
         for path in &entries {
@@ -58,7 +58,7 @@ pub fn try_load(mnt_point: &Path) -> bool {
         }
     }
 
-    // 2. Fallback to loose match (Kernel version only)
+    // 2. Fallback match
     if target_ko.is_none() {
         for path in &entries {
             let name = path.file_name().unwrap().to_string_lossy();
@@ -73,15 +73,13 @@ pub fn try_load(mnt_point: &Path) -> bool {
     let ko_path = match target_ko {
         Some(p) => p,
         None => {
-            log::warn!("No matching Nuke LKM found for kernel {} (Android {})", uname, android_ver);
+            log::warn!("No matching Nuke LKM found for kernel {}", uname);
             return false;
         }
     };
 
-    // Temporarily lower kptr_restrict to get symbol address
     let _kptr_guard = utils::ScopedKptrRestrict::new();
 
-    // Find symbol address
     let cmd = Command::new("sh")
         .arg("-c")
         .arg("grep \" ext4_unregister_sysfs$\" /proc/kallsyms | awk '{print \"0x\"$1}'")
@@ -97,30 +95,35 @@ pub fn try_load(mnt_point: &Path) -> bool {
         return false;
     }
 
-    log::info!("Symbol address: {}", sym_addr);
-
-    // Execute insmod with stderr suppressed
-    // Nuke LKM intentionally returns -EAGAIN to auto-unload, so insmod WILL fail.
-    // We ignore the exit status and stderr to prevent false error logs.
+    // Silent execution: suppress stderr to hide "Operation not permitted"
+    // LKM returns -EAGAIN on success to self-unload
     let status = Command::new("insmod")
         .arg(ko_path)
         .arg(format!("mount_point={}", mnt_point.display()))
         .arg(format!("symaddr={}", sym_addr))
-        .stdout(Stdio::null()) // Silence stdout
-        .stderr(Stdio::null()) // Silence stderr (Hide "Operation not permitted")
+        .stdout(Stdio::null()) 
+        .stderr(Stdio::null())
         .status();
 
     match status {
         Ok(_) => {
-            // We assume success because the LKM logic is "run once and die".
-            // Even if it returns non-zero, it likely executed the nuke logic.
-            log::info!("Nuke LKM injected (and self-unloaded). Ext4 traces should be gone.");
+            log::info!("Nuke LKM injected (silent mode).");
             true
         },
         Err(e) => {
-            // This only triggers if insmod command itself couldn't be spawned
-            log::error!("Failed to spawn insmod process: {}", e);
+            log::error!("Failed to spawn insmod: {}", e);
             false
         },
     }
+}
+
+pub fn try_load(mnt_point: &Path) -> bool {
+    // Strategy 1: Try SukiSU/KSU ioctl (Best Stealth, No LKM)
+    if let Ok(_) = utils::ksu_nuke_sysfs(mnt_point.to_string_lossy().as_ref()) {
+        log::info!("Success: Nuked ext4 sysfs via KernelSU ioctl.");
+        return true;
+    }
+
+    // Strategy 2: Fallback to LKM (Good Stealth)
+    try_lkm_load(mnt_point)
 }
