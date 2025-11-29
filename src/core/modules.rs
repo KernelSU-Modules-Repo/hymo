@@ -1,7 +1,7 @@
 // meta-hybrid_mount/src/core/modules.rs
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde::Serialize;
 // Adjusted imports: state is now in core

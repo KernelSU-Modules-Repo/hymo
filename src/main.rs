@@ -4,8 +4,7 @@ mod core;
 mod defs;
 mod mount;
 mod utils;
-use std::path::{Path, PathBuf};
-use std::fs;
+use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use rustix::mount::{unmount, UnmountFlags};
@@ -23,9 +22,7 @@ use core::{
     storage,
 };
 use mount::{
-    magic,
     nuke,
-    overlay,
 };
 
 // Set mimalloc as the global allocator for better performance
