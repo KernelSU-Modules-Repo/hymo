@@ -12,6 +12,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use rustix::mount::{mount, MountFlags};
+use rustix::path::Arg;
+
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use extattr::{Flags as XattrFlags, lsetxattr};
 
@@ -303,7 +305,7 @@ where
     P: AsRef<Path>,
 {
     let path_ref = target.as_ref();
-    let path_str = path_ref.as_str().unwrap_or_default(); // Avoid Result unwrap panic risk
+    let path_str = path_ref.as_str().unwrap_or_default(); 
     
     if path_str.is_empty() { return Ok(()); }
 
