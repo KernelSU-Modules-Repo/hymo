@@ -1,8 +1,8 @@
 // meta-hybrid_mount/src/utils.rs
 use std::{
     ffi::CString,
-    fs::{self, create_dir, create_dir_all, remove_dir, remove_dir_all, remove_file, write, OpenOptions},
-    io::{Read, Write},
+    fs::{create_dir, create_dir_all, remove_dir, remove_dir_all, remove_file, write, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     process::Command,
     sync::Mutex,
@@ -107,7 +107,7 @@ pub fn ensure_dir_exists<T: AsRef<Path>>(dir: T) -> Result<()> {
     Ok(())
 }
 
-// --- Stealth Utils (Process & Mount Point) ---
+// --- Stealth Utils (Process) ---
 
 /// Camouflage the current process name to look like a kernel worker
 pub fn camouflage_process(name: &str) -> Result<()> {
@@ -117,62 +117,6 @@ pub fn camouflage_process(name: &str) -> Result<()> {
     }
     log::debug!("Process name disguised as: {}", name);
     Ok(())
-}
-
-/// Generate a simple random hex string without external crates
-fn random_string(len: usize) -> String {
-    let mut file = match fs::File::open("/dev/urandom") {
-        Ok(f) => f,
-        Err(_) => return "fallback".to_string(),
-    };
-    let mut buf = vec![0u8; len];
-    if file.read_exact(&mut buf).is_err() {
-        return "fallback".to_string();
-    }
-    
-    buf.iter()
-        .map(|b| format!("{:x}", b % 16))
-        .collect()
-}
-
-pub fn find_decoy_mount_point() -> Option<PathBuf> {
-    let candidates = [
-        "/oem",
-        "/mnt/vendor/oem",
-        "/mnt/vendor/persist",
-        "/mnt/product/persist",
-        "/acct",
-        "/sys/kernel/tracing",
-        "/debug_ramdisk/decoy",
-    ];
-
-    for path_str in candidates {
-        let path = Path::new(path_str);
-        if path.is_dir() {
-            if let Ok(mut entries) = path.read_dir() {
-                if entries.next().is_none() {
-                    log::info!("Found empty decoy directory: {}", path_str);
-                    return Some(path.to_path_buf());
-                }
-            }
-        }
-    }
-    
-    // Create a randomized fallback directory in /dev
-    let random_suffix = random_string(6);
-    let decoy_name = format!(".mnt_{}", random_suffix);
-    let dev_decoy = Path::new("/dev").join(decoy_name);
-    
-    if !dev_decoy.exists() {
-        if create_dir(&dev_decoy).is_ok() {
-             log::info!("Created randomized decoy: {}", dev_decoy.display());
-             return Some(dev_decoy);
-        }
-    } else {
-        return Some(dev_decoy);
-    }
-
-    None
 }
 
 // --- Smart Storage Utils ---
@@ -293,9 +237,9 @@ pub struct ScopedKptrRestrict {
 impl ScopedKptrRestrict {
     pub fn new() -> Self {
         let path = "/proc/sys/kernel/kptr_restrict";
-        let original = fs::read_to_string(path).unwrap_or_else(|_| "2".to_string()).trim().to_string();
+        let original = std::fs::read_to_string(path).unwrap_or_else(|_| "2".to_string()).trim().to_string();
         
-        if let Err(e) = fs::write(path, "0") {
+        if let Err(e) = write(path, "0") {
             log::warn!("Failed to lower kptr_restrict: {}", e);
         } else {
             log::debug!("Temporarily lowered kptr_restrict to 0 (was {})", original);
@@ -308,7 +252,7 @@ impl ScopedKptrRestrict {
 impl Drop for ScopedKptrRestrict {
     fn drop(&mut self) {
         let path = "/proc/sys/kernel/kptr_restrict";
-        if let Err(e) = fs::write(path, &self.original) {
+        if let Err(e) = write(path, &self.original) {
             log::warn!("Failed to restore kptr_restrict: {}", e);
         } else {
             log::debug!("Restored kptr_restrict to {}", self.original);
@@ -358,8 +302,6 @@ pub fn send_unmountable<P>(target: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    use rustix::path::Arg; // ADDED THIS IMPORT
-
     let path_ref = target.as_ref();
     let path_str = path_ref.as_str().unwrap_or_default(); // Avoid Result unwrap panic risk
     
