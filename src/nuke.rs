@@ -14,7 +14,7 @@ fn get_android_version() -> Option<String> {
 
 /// Fallback: Attempt to load Nuke LKM directly
 fn try_lkm_load(mnt_point: &Path) -> bool {
-    log::info!("Attempting to load Nuke LKM for stealth (Fallback method)...");
+    log::info!("Attempting to deploy Paw Pad (LKM) for stealth...");
     
     let uname = match utils::get_kernel_release() {
         Ok(v) => v,
@@ -52,7 +52,7 @@ fn try_lkm_load(mnt_point: &Path) -> bool {
             let name = path.file_name().unwrap().to_string_lossy();
             if name.contains(&kernel_short) && name.contains(&pattern_android) {
                 target_ko = Some(path.clone());
-                log::info!("Found exact match LKM: {}", name);
+                log::info!("Found Paw Pad (LKM): {}", name);
                 break;
             }
         }
@@ -64,7 +64,7 @@ fn try_lkm_load(mnt_point: &Path) -> bool {
             let name = path.file_name().unwrap().to_string_lossy();
             if name.contains(&kernel_short) {
                 target_ko = Some(path.clone());
-                log::info!("Found loose match LKM: {}", name);
+                log::info!("Found compatible Paw Pad (LKM): {}", name);
                 break;
             }
         }
@@ -73,7 +73,7 @@ fn try_lkm_load(mnt_point: &Path) -> bool {
     let ko_path = match target_ko {
         Some(p) => p,
         None => {
-            log::warn!("No matching Nuke LKM found for kernel {}", uname);
+            log::warn!("No matching Paw Pad found for kernel {}", uname);
             return false;
         }
     };
@@ -107,7 +107,7 @@ fn try_lkm_load(mnt_point: &Path) -> bool {
 
     match status {
         Ok(_) => {
-            log::info!("Nuke LKM injected (silent mode).");
+            log::info!("Paw Pad (Nuke) LKM injected successfully (silent mode).");
             true
         },
         Err(e) => {
@@ -120,7 +120,7 @@ fn try_lkm_load(mnt_point: &Path) -> bool {
 pub fn try_load(mnt_point: &Path) -> bool {
     // Strategy 1: Try SukiSU/KSU ioctl (Best Stealth, No LKM)
     if let Ok(_) = utils::ksu_nuke_sysfs(mnt_point.to_string_lossy().as_ref()) {
-        log::info!("Success: Nuked ext4 sysfs via KernelSU ioctl.");
+        log::info!("Success: Applied Paw Pad via KernelSU ioctl.");
         return true;
     }
 

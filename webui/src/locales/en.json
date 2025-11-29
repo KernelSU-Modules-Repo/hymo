@@ -27,7 +27,7 @@
     "verboseOff": "Off",
     "verboseOn": "On",
     "forceExt4": "Force Ext4 Mode",
-    "enableNuke": "Enable Nuke LKM (Stealth)",
+    "enableNuke": "Enable Paw Pad (Stealth)",
     "moduleDir": "Module Directory",
     "tempDir": "Temp Directory",
     "mountSource": "Mount Source",

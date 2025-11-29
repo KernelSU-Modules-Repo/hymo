@@ -27,7 +27,7 @@
     "verboseOff": "關閉",
     "verboseOn": "開啟",
     "forceExt4": "強制 Ext4 模式",
-    "enableNuke": "啟用 Nuke LKM (隱蔽)",
+    "enableNuke": "啟用肉墊 (隱蔽模式)",
     "moduleDir": "模組路徑",
     "tempDir": "臨時路徑",
     "mountSource": "掛載來源",
