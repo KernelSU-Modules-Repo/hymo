@@ -358,6 +358,8 @@ pub fn send_unmountable<P>(target: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
+    use rustix::path::Arg; // ADDED THIS IMPORT
+
     let path_ref = target.as_ref();
     let path_str = path_ref.as_str().unwrap_or_default(); // Avoid Result unwrap panic risk
     
