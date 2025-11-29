@@ -89,6 +89,29 @@ pub fn sync_active(source_dir: &Path, target_base: &Path) -> Result<()> {
     let ids = scan_enabled_ids(source_dir)?;
     log::debug!("Found {} enabled modules to sync.", ids.len());
     
+    // 1. Prune stale modules from storage (e.g. from modules.img)
+    if target_base.exists() {
+        for entry in fs::read_dir(target_base)? {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_dir() { continue; }
+            
+            let id = entry.file_name().to_string_lossy().to_string();
+            
+            // Skip ext4 system folder and self
+            if id == "lost+found" || id == "meta-hybrid" { continue; }
+
+            // If module is not in the enabled list, remove it from storage
+            if !ids.contains(&id) {
+                log::info!("Pruning stale/disabled module from storage: {}", id);
+                if let Err(e) = fs::remove_dir_all(&path) {
+                    log::warn!("Failed to remove stale module {}: {}", id, e);
+                }
+            }
+        }
+    }
+
+    // 2. Sync enabled modules
     for id in ids {
         let src = source_dir.join(&id);
         let dst = target_base.join(&id);
