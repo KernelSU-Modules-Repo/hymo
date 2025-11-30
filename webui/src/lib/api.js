@@ -17,6 +17,7 @@ function serializeKvConfig(cfg) {
 
 export const API = {
   loadConfig: async () => {
+    // Use centralized binary path
     const cmd = `${PATHS.BINARY} show-config`;
     try {
       const { errno, stdout } = await exec(cmd);
@@ -76,6 +77,7 @@ export const API = {
       
       if (errno === 0 && stdout) {
         const data = JSON.parse(stdout);
+        // Backend now returns the definitive type from the state file
         return {
           size: data.size || '-',
           used: data.used || '-',
@@ -96,7 +98,7 @@ export const API = {
       const cmdSys = `echo "KERNEL:$(uname -r)"; echo "SELINUX:$(getenforce)"`;
       const { errno: errSys, stdout: outSys } = await exec(cmdSys);
       
-      let info = { kernel: '-', selinux: '-', mountBase: '-', conflicts: [] };
+      let info = { kernel: '-', selinux: '-', mountBase: '-' };
       if (errSys === 0 && outSys) {
         outSys.split('\n').forEach(line => {
           if (line.startsWith('KERNEL:')) info.kernel = line.substring(7).trim();
@@ -112,7 +114,7 @@ export const API = {
         try {
           const state = JSON.parse(outState);
           info.mountBase = state.mount_point || 'Unknown';
-          info.conflicts = state.conflicts || [];
+          // Potentially read other useful state here in the future
         } catch (e) {
           console.error("Failed to parse daemon state JSON", e);
         }
@@ -121,7 +123,7 @@ export const API = {
       return info;
     } catch (e) {
       console.error("System info check failed:", e);
-      return { kernel: 'Unknown', selinux: 'Unknown', mountBase: 'Unknown', conflicts: [] };
+      return { kernel: 'Unknown', selinux: 'Unknown', mountBase: 'Unknown' };
     }
   },
 

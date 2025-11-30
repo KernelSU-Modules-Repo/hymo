@@ -27,8 +27,7 @@
     "kernel": "核心版本",
     "selinux": "SELinux",
     "mountBase": "掛載基點 (Mount Base)",
-    "activePartitions": "活躍分區",
-    "conflictsTitle": "發現檔案衝突"
+    "activePartitions": "活躍分區"
   },
   "config": {
     "title": "設定",

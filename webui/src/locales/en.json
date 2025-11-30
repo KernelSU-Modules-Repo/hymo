@@ -27,8 +27,7 @@
     "kernel": "Kernel",
     "selinux": "SELinux",
     "mountBase": "Mount Base",
-    "activePartitions": "Active Partitions",
-    "conflictsTitle": "File Conflicts Detected"
+    "activePartitions": "Active Partitions"
   },
   "config": {
     "title": "Configuration",

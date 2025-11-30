@@ -27,8 +27,7 @@
     "kernel": "Núcleo",
     "selinux": "SELinux",
     "mountBase": "Base de montaje",
-    "activePartitions": "Particiones Activas",
-    "conflictsTitle": "Conflictos de archivos detectados"
+    "activePartitions": "Particiones Activas"
   },
   "config": {
     "title": "Configuración",

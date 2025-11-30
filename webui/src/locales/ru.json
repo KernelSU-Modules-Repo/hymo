@@ -27,8 +27,7 @@
     "kernel": "Ядро",
     "selinux": "SELinux",
     "mountBase": "База монтирования",
-    "activePartitions": "Активные разделы",
-    "conflictsTitle": "Обнаружены конфликты файлов"
+    "activePartitions": "Активные разделы"
   },
   "config": {
     "title": "Конфигурация",

@@ -27,8 +27,7 @@
     "kernel": "内核版本",
     "selinux": "SELinux",
     "mountBase": "挂载基点 (Mount Base)",
-    "activePartitions": "活跃分区",
-    "conflictsTitle": "发现文件冲突"
+    "activePartitions": "活跃分区"
   },
   "config": {
     "title": "配置",
