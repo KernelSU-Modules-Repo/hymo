@@ -1,9 +1,14 @@
+// Import generated paths from Rust source (SSOT)
+// This file is created by 'cargo xtask build'
+import { RUST_PATHS } from './constants_gen.js';
+
 // Default configuration values
+// Note: While paths are synced, defaults like 'verbose' are still defined here for UI initialization
 export const DEFAULT_CONFIG = {
   moduledir: '/data/adb/modules',
   tempdir: '',
   mountsource: 'KSU',
-  logfile: '/data/adb/meta-hybrid/daemon.log',
+  logfile: RUST_PATHS.DAEMON_LOG || '/data/adb/meta-hybrid/daemon.log',
   verbose: false,
   partitions: [],
   force_ext4: false,
@@ -13,11 +18,8 @@ export const DEFAULT_CONFIG = {
 
 // File system paths
 export const PATHS = {
-  CONFIG: '/data/adb/meta-hybrid/config.toml',
-  MODE_CONFIG: '/data/adb/meta-hybrid/module_mode.conf',
-  IMAGE_MNT: '/data/adb/meta-hybrid/mnt',
-  BINARY: '/data/adb/modules/meta-hybrid/meta-hybrid',
-  DAEMON_STATE: '/data/adb/meta-hybrid/run/daemon_state.json'
+  ...RUST_PATHS,
+  BINARY: '/data/adb/modules/meta-hybrid/meta-hybrid'
 };
 
 export const DEFAULT_SEED = '#6750A4';
