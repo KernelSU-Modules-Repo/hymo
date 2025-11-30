@@ -21,6 +21,25 @@ pub struct MountPlan {
     pub magic_module_ids: Vec<String>,
 }
 
+fn has_files_recursive(path: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let file_type = match entry.file_type() {
+                Ok(ft) => ft,
+                Err(_) => continue,
+            };
+            if file_type.is_dir() {
+                if has_files_recursive(&entry.path()) {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub fn generate(config: &config::Config, mnt_base: &Path) -> Result<MountPlan> {
     let module_modes = config::load_module_modes();
     let mut active_modules: HashMap<String, PathBuf> = HashMap::new();
@@ -53,20 +72,34 @@ pub fn generate(config: &config::Config, mnt_base: &Path) -> Result<MountPlan> {
         let mode = module_modes.get(module_id).map(|s| s.as_str()).unwrap_or("auto");
         
         if mode == "magic" {
-            magic_mount_modules.insert(content_path.clone());
-            magic_ids_set.insert(module_id.clone());
-            log::info!("Planner: Module '{}' assigned to Magic Mount", module_id);
+            // Check if the module has ANY content in relevant partitions
+            let has_content = all_partitions.iter().any(|&part| {
+                let p = content_path.join(part);
+                p.is_dir() && has_files_recursive(&p)
+            });
+
+            if has_content {
+                magic_mount_modules.insert(content_path.clone());
+                magic_ids_set.insert(module_id.clone());
+                log::info!("Planner: Module '{}' assigned to Magic Mount", module_id);
+            } else {
+                log::debug!("Planner: Module '{}' skipped (empty)", module_id);
+            }
         } else {
             // Auto mode: Check partitions
             let mut participates_in_overlay = false;
             for &part in &all_partitions {
-                if content_path.join(part).is_dir() {
+                let part_path = content_path.join(part);
+                // Check if partition dir exists AND has actual files
+                if part_path.is_dir() && has_files_recursive(&part_path) {
                     partition_overlay_map.entry(part.to_string()).or_default().push(content_path.clone());
                     participates_in_overlay = true;
                 }
             }
             if participates_in_overlay {
                 overlay_ids_set.insert(module_id.clone());
+            } else {
+                log::debug!("Planner: Module '{}' skipped (empty)", module_id);
             }
         }
     }
