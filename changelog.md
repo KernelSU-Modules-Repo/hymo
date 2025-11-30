@@ -1,13 +1,11 @@
-## v0.2.8-r1-g1dc4cec
+## v0.2.8-r3-gfe6453e
 
-Changes since v0.2.7-r2:
-* bump to v0.2.8
-* fix(utils): remove unused `PermissionsExt` import
-* 	modified:   Cargo.toml
-* refactor: merge magic mount implementation into single file
-* fix: resolve dependency downgrades and compiler warnings
-* perf: optimize binary size and implement native directory sync
-* refactor: unify partitions list and clean up magic mount logic
-* fix(utils): move magic mount workspace to module run directory
-* build(xtask): implement SSOT for shared constants
-* [skip ci] Update KernelSU json and changelog for v0.2.7-r2
+Changes since v0.2.8-r1:
+* Revert "feat(selinux): implement intelligent context mirroring"
+* Revert "feat(mount): optimize overlayfs with `override_creds=off`"
+* Revert "feat(core): implement deterministic module ordering (Z-A) and file conflict detection"
+* Revert "feat(webui): display file conflict warnings in status tab"
+* feat(mount): optimize overlayfs with `override_creds=off`
+* feat(selinux): implement intelligent context mirroring
+* Revert "feat(module): add Disclaimer for customize.sh"
+* [skip ci] Update KernelSU json and changelog for v0.2.8-r1
