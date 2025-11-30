@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use crate::{conf::config, defs};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -102,6 +103,8 @@ pub fn generate(config: &config::Config, mnt_base: &Path) -> Result<MountPlan> {
     }
 
     // Sort modules by ID descending (Z->A)
+    // This ensures that modules starting with 'Z' are processed first,
+    // effectively placing them at the "Top" of the OverlayFS stack (Highest Priority).
     let mut sorted_modules: Vec<(&String, &PathBuf)> = active_modules.iter().collect();
     sorted_modules.sort_by(|(id_a, _), (id_b, _)| id_b.cmp(id_a));
 
@@ -116,6 +119,7 @@ pub fn generate(config: &config::Config, mnt_base: &Path) -> Result<MountPlan> {
     let mut overlay_ids_set: HashSet<String> = HashSet::new();
     let mut magic_ids_set: HashSet<String> = HashSet::new();
 
+    // Iterate using the SORTED order
     for (module_id, content_path) in &sorted_modules {
         let mode = module_modes.get(module_id.as_str()).map(|s| s.as_str()).unwrap_or("auto");
         
