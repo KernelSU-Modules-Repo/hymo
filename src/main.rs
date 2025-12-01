@@ -7,7 +7,7 @@ mod utils;
 
 use std::path::{Path, PathBuf};
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use mimalloc::MiMalloc;
 
 use conf::{
@@ -83,7 +83,6 @@ fn run() -> Result<()> {
         log::warn!("Failed to camouflage process: {}", e);
     }
 
-    // Updated log message to be more standard
     log::info!("Meta-Hybrid Mount Daemon Starting...");
 
     if config.disable_umount {

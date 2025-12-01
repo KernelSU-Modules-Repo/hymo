@@ -54,7 +54,8 @@ where
         // Write level in brackets, e.g., "[INFO] "
         write!(writer, "[{}] ", level)?;
         // Write the actual log message (and other fields if any)
-        ctx.field_format().format(writer, event)
+        // Fixed: Passed &mut writer to format()
+        ctx.field_format().format(&mut writer, event)
     }
 }
 
