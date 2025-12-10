@@ -83,74 +83,6 @@ jobs:
           
           cat "$PROP_FILE"
 
-      - name: Update Kernel Protocol
-        id: protocol
-        run: |
-          # Fetch tags to ensure we have history for git describe
-          git fetch --tags --force
-          
-          # Get previous tag
-          if git rev-parse HEAD^ >/dev/null 2>&1; then
-            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          else
-            PREV_TAG=""
-          fi
-          
-          echo "Previous Tag: $PREV_TAG"
-          
-          SHOULD_UPDATE="false"
-          
-          if [ -n "$PREV_TAG" ]; then
-            # Check for changes in patch file, ignoring the Protocol version line
-            # This prevents infinite bump loops caused by the previous release's bump
-            if git diff -I "HymoFS Protocol:" --name-only "$PREV_TAG" HEAD -- patch/hymofs.patch | grep -q "patch/hymofs.patch"; then
-              echo "Patch file logic changed since $PREV_TAG."
-              SHOULD_UPDATE="true"
-            else
-              echo "No logic changes in patch file since $PREV_TAG."
-            fi
-          else
-            # No previous tag. Fallback to checking if modified in current commit
-            LAST_PATCH_COMMIT=$(git log -1 --format="%H" patch/hymofs.patch || echo "none")
-            CURRENT_COMMIT=$(git rev-parse HEAD)
-            if [ "$LAST_PATCH_COMMIT" = "$CURRENT_COMMIT" ]; then
-               echo "Patch modified in initial release commit."
-               SHOULD_UPDATE="true"
-            fi
-          fi
-          
-          if [ "$SHOULD_UPDATE" = "true" ]; then
-            echo "Patch file modified. Bumping protocol version..."
-            
-            # Read current version from patch
-            CURRENT_VER=$(grep -o "HymoFS Protocol: [0-9]*" patch/hymofs.patch | cut -d: -f2 | xargs)
-            echo "Current Version: $CURRENT_VER"
-            
-            if [ -z "$CURRENT_VER" ]; then
-              echo "Error: Could not parse version from patch file."
-              exit 1
-            fi
-            
-            NEW_VER=$((CURRENT_VER + 1))
-            echo "New Version: $NEW_VER"
-            
-            # Update Patch
-            sed -i "s/HymoFS Protocol: $CURRENT_VER/HymoFS Protocol: $NEW_VER/" patch/hymofs.patch
-            
-            # Update Header
-            # Use regex to match the line regardless of current value
-            sed -i "s/static constexpr int EXPECTED_PROTOCOL_VERSION = [0-9]*;/static constexpr int EXPECTED_PROTOCOL_VERSION = $NEW_VER;/" src/mount/hymofs.hpp
-            
-            echo "updated=true" >> $GITHUB_OUTPUT
-            
-            # Verify changes
-            grep "HymoFS Protocol:" patch/hymofs.patch
-            grep "EXPECTED_PROTOCOL_VERSION" src/mount/hymofs.hpp
-          else
-            echo "Patch file not modified (or only version bump). Keeping existing version."
-            echo "updated=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build Project
         env:
           NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -238,14 +170,6 @@ jobs:
           mv /tmp/changelog.md changelog.md
           
           git add update.json changelog.md
-          
-          # Add protocol files if they were updated
-          if [ "${{ steps.protocol.outputs.updated }}" == "true" ]; then
-            git add patch/hymofs.patch src/mount/hymofs.hpp
-            MSG_SUFFIX=" and Protocol Bump"
-          else
-            MSG_SUFFIX=""
-          fi
           
           if git diff --staged --quiet; then
             echo "No changes to commit"
