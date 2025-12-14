@@ -55,7 +55,7 @@ echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to d
 ```
 Or if you are using susfs, add this **AFTER** the susfs patch：
 ```bash
-wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android_15_6.6/patch/hymofs_with_susfs.patch
+wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs_with_susfs.patch
 patch -p1 -F 3 < yhymofs_with_susfs.patch
 echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to defconfig
 ```
