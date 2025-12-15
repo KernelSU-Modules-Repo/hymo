@@ -210,4 +210,38 @@ std::map<std::string, std::vector<ModuleRuleConfig>> load_module_rules() {
     return rules;
 }
 
+bool save_module_modes(const std::map<std::string, std::string>& modes) {
+    fs::path mode_file = fs::path(BASE_DIR) / "module_mode.conf";
+    std::ofstream file(mode_file);
+    if (!file.is_open()) return false;
+
+    file << "# HymoFS Module Modes Configuration\n";
+    file << "# Format: module_id = mode\n";
+    file << "# Modes: auto, hymofs, overlay, magic, none\n\n";
+
+    for (const auto& [module_id, mode] : modes) {
+        file << module_id << " = " << mode << "\n";
+    }
+
+    return true;
+}
+
+bool save_module_rules(const std::map<std::string, std::vector<ModuleRuleConfig>>& rules) {
+    fs::path rules_file = fs::path(BASE_DIR) / "module_rules.conf";
+    std::ofstream file(rules_file);
+    if (!file.is_open()) return false;
+
+    file << "# HymoFS Module Rules Configuration\n";
+    file << "# Format: module_id:path = mode\n";
+    file << "# Modes: auto, hymofs, overlay, magic, none\n\n";
+
+    for (const auto& [module_id, module_rules] : rules) {
+        for (const auto& rule : module_rules) {
+            file << module_id << ":" << rule.path << " = " << rule.mode << "\n";
+        }
+    }
+
+    return true;
+}
+
 } // namespace hymo

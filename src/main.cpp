@@ -13,6 +13,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <algorithm>
 #include <getopt.h>
 #include <sys/mount.h>
 
@@ -46,7 +47,10 @@ static void print_help() {
     std::cout << "  debug <on|off>  Enable/Disable kernel debug logging\n";
     std::cout << "  raw <cmd> ...   Execute raw HymoFS command (add/hide/delete)\n";
     std::cout << "  add <mod_id>    Add module rules to HymoFS\n";
-    std::cout << "  delete <mod_id> Delete module rules from HymoFS\n\n";
+    std::cout << "  delete <mod_id> Delete module rules from HymoFS\n";
+    std::cout << "  set-mode <mod_id> <mode>  Set mount mode for a module (auto, hymofs, overlay, magic, none)\n";
+    std::cout << "  add-rule <mod_id> <path> <mode> Add a custom mount rule for a module\n";
+    std::cout << "  remove-rule <mod_id> <path> Remove a custom mount rule for a module\n\n";
     std::cout << "Options:\n";
     std::cout << "  -c, --config FILE       Config file path\n";
     std::cout << "  -m, --moduledir DIR     Module directory\n";
@@ -56,6 +60,70 @@ static void print_help() {
     std::cout << "  -p, --partition NAME    Add partition (can be used multiple times)\n";
     std::cout << "  -o, --output FILE       Output file (for gen-config)\n";
     std::cout << "  -h, --help              Show this help\n";
+}
+
+// Helper to segregate custom rules (Overlay/Magic) from HymoFS source tree
+static void segregate_custom_rules(MountPlan& plan, const fs::path& mirror_dir) {
+    fs::path staging_dir = mirror_dir / ".overlay_staging";
+    
+    // Process Overlay Ops
+    for (auto& op : plan.overlay_ops) {
+        for (auto& layer : op.lowerdirs) {
+            // Check if layer is inside mirror_dir
+            // We can't easily check if it belongs to a HymoFS module without iterating modules,
+            // but generally if it's in the mirror and we are in HymoFS mode, we should segregate it
+            // if it's being used for OverlayFS.
+            // Actually, plan.overlay_ops ONLY contains paths that are supposed to be mounted via OverlayFS.
+            // If these paths are inside the HymoFS source tree (mirror_dir), HymoFS might pick them up
+            // if we don't move them.
+            
+            // Check if path starts with mirror_dir
+            std::string layer_str = layer.string();
+            std::string mirror_str = mirror_dir.string();
+            
+            if (layer_str.find(mirror_str) == 0) {
+                // It is inside mirror. Move it to staging.
+                // Construct relative path from mirror root
+                fs::path rel = fs::relative(layer, mirror_dir);
+                fs::path target = staging_dir / rel;
+                
+                try {
+                    if (fs::exists(layer)) {
+                        fs::create_directories(target.parent_path());
+                        fs::rename(layer, target);
+                        // Update the layer path in the plan
+                        layer = target;
+                        LOG_DEBUG("Segregated custom rule source: " + layer_str + " -> " + target.string());
+                    }
+                } catch (const std::exception& e) {
+                    LOG_WARN("Failed to segregate custom rule source: " + layer_str + " - " + e.what());
+                }
+            }
+        }
+    }
+    
+    // Process Magic Mounts
+    // plan.magic_module_paths is a vector of paths
+    for (auto& path : plan.magic_module_paths) {
+        std::string path_str = path.string();
+        std::string mirror_str = mirror_dir.string();
+        
+        if (path_str.find(mirror_str) == 0) {
+            fs::path rel = fs::relative(path, mirror_dir);
+            fs::path target = staging_dir / rel;
+            
+            try {
+                if (fs::exists(path)) {
+                    fs::create_directories(target.parent_path());
+                    fs::rename(path, target);
+                    path = target;
+                    LOG_DEBUG("Segregated magic rule source: " + path_str + " -> " + target.string());
+                }
+            } catch (const std::exception& e) {
+                LOG_WARN("Failed to segregate magic rule source: " + path_str + " - " + e.what());
+            }
+        }
+    }
 }
 
 static CliOptions parse_args(int argc, char* argv[]) {
@@ -384,6 +452,82 @@ int main(int argc, char* argv[]) {
                     return 1;
                 }
                 return 0;
+            } else if (cli.command == "set-mode") {
+                if (cli.args.size() < 2) {
+                    std::cerr << "Usage: hymod set-mode <mod_id> <mode>\n";
+                    return 1;
+                }
+                std::string mod_id = cli.args[0];
+                std::string mode = cli.args[1];
+                
+                auto modes = load_module_modes();
+                modes[mod_id] = mode;
+                
+                if (save_module_modes(modes)) {
+                    std::cout << "Set mode for " << mod_id << " to " << mode << "\n";
+                } else {
+                    std::cerr << "Failed to save module modes.\n";
+                    return 1;
+                }
+                return 0;
+            } else if (cli.command == "add-rule") {
+                if (cli.args.size() < 3) {
+                    std::cerr << "Usage: hymod add-rule <mod_id> <path> <mode>\n";
+                    return 1;
+                }
+                std::string mod_id = cli.args[0];
+                std::string path = cli.args[1];
+                std::string mode = cli.args[2];
+                
+                auto rules = load_module_rules();
+                bool found = false;
+                for (auto& rule : rules[mod_id]) {
+                    if (rule.path == path) {
+                        rule.mode = mode;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    rules[mod_id].push_back({path, mode});
+                }
+                
+                if (save_module_rules(rules)) {
+                    std::cout << "Added rule for " << mod_id << ": " << path << " -> " << mode << "\n";
+                } else {
+                    std::cerr << "Failed to save module rules.\n";
+                    return 1;
+                }
+                return 0;
+            } else if (cli.command == "remove-rule") {
+                if (cli.args.size() < 2) {
+                    std::cerr << "Usage: hymod remove-rule <mod_id> <path>\n";
+                    return 1;
+                }
+                std::string mod_id = cli.args[0];
+                std::string path = cli.args[1];
+                
+                auto rules = load_module_rules();
+                if (rules.find(mod_id) != rules.end()) {
+                    auto& mod_rules = rules[mod_id];
+                    auto it = std::remove_if(mod_rules.begin(), mod_rules.end(), 
+                        [&path](const ModuleRuleConfig& r) { return r.path == path; });
+                    
+                    if (it != mod_rules.end()) {
+                        mod_rules.erase(it, mod_rules.end());
+                        if (save_module_rules(rules)) {
+                            std::cout << "Removed rule for " << mod_id << ": " << path << "\n";
+                        } else {
+                            std::cerr << "Failed to save module rules.\n";
+                            return 1;
+                        }
+                    } else {
+                        std::cout << "Rule not found.\n";
+                    }
+                } else {
+                    std::cout << "Module not found in rules.\n";
+                }
+                return 0;
             } else if (cli.command == "reload") {
                 Config config = load_config(cli);
                 // Re-initialize logger with config verbosity
@@ -622,6 +766,9 @@ int main(int argc, char* argv[]) {
                     // Generate plan from MIRROR
                     plan = generate_plan(config, module_list, MIRROR_DIR);
                     
+                    // Segregate custom rules (Overlay/Magic) to prevent HymoFS interference
+                    segregate_custom_rules(plan, MIRROR_DIR);
+
                     // Update Kernel Mappings using MIRROR paths
                     update_hymofs_mappings(config, module_list, MIRROR_DIR, plan);
                     
