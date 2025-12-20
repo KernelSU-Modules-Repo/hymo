@@ -81,10 +81,12 @@ static bool mount_overlayfs_modern(
     }
     
     if (success && fsconfig(fs_fd, FSCONFIG_SET_STRING, "source", KSU_OVERLAY_SOURCE, 0) < 0) {
+        LOG_WARN("fsconfig source failed: " + std::string(strerror(errno)));
         success = false;
     }
     
     if (success && fsconfig(fs_fd, FSCONFIG_CMD_CREATE, nullptr, nullptr, 0) < 0) {
+        LOG_WARN("fsconfig create failed: " + std::string(strerror(errno)));
         success = false;
     }
     
@@ -123,6 +125,7 @@ static bool mount_overlayfs_legacy(
     }
     
     if (mount(KSU_OVERLAY_SOURCE, dest.c_str(), "overlay", 0, data.c_str()) != 0) {
+        LOG_ERROR("legacy mount failed: " + std::string(strerror(errno)));
         return false;
     }
     
@@ -166,17 +169,25 @@ bool bind_mount(const fs::path& from, const fs::path& to, bool disable_umount) {
     
     // Use OPEN_TREE_CLOEXEC instead of FSOPEN_CLOEXEC
     int tree_fd = open_tree(AT_FDCWD, from.c_str(), OPEN_TREE_CLONE | AT_RECURSIVE | OPEN_TREE_CLOEXEC);
-    if (tree_fd < 0) {
-        LOG_ERROR("open_tree failed for " + from.string() + ": " + strerror(errno));
-        return false;
+    bool success = false;
+
+    if (tree_fd >= 0) {
+        success = (move_mount(tree_fd, "", AT_FDCWD, to.c_str(), MOVE_MOUNT_F_EMPTY_PATH) == 0);
+        if (!success) {
+            LOG_WARN("move_mount failed for " + to.string() + ": " + strerror(errno) + ", trying legacy mount");
+        }
+        close(tree_fd);
+    } else {
+        LOG_DEBUG("open_tree failed for " + from.string() + ": " + strerror(errno) + ", trying legacy mount");
     }
-    
-    bool success = (move_mount(tree_fd, "", AT_FDCWD, to.c_str(), MOVE_MOUNT_F_EMPTY_PATH) == 0);
+
     if (!success) {
-        LOG_ERROR("move_mount failed for " + to.string() + ": " + strerror(errno));
+        if (mount(from.c_str(), to.c_str(), NULL, MS_BIND | MS_REC, NULL) == 0) {
+            success = true;
+        } else {
+            LOG_ERROR("bind mount failed for " + to.string() + ": " + strerror(errno));
+        }
     }
-    
-    close(tree_fd);
     
     if (success && !disable_umount) {
         send_unmountable(to);
@@ -191,7 +202,8 @@ static bool mount_overlay_child(
     const std::string& relative,
     const std::vector<std::string>& module_roots,
     const std::string& stock_root,
-    bool disable_umount
+    bool disable_umount,
+    const std::vector<std::string>& partitions
 ) {
     // Check if any module modified this subpath
     bool has_modification = false;
@@ -262,17 +274,18 @@ bool mount_overlay(
     const std::vector<std::string>& module_roots,
     std::optional<fs::path> upperdir,
     std::optional<fs::path> workdir,
-    bool disable_umount
+    bool disable_umount,
+    const std::vector<std::string>& partitions
 ) {
     LOG_INFO("Starting robust overlay mount for " + target_root);
     
     // FIX 3: Ensure correct chdir before mounting
-    if (chdir(target_root.c_str()) != 0) {
-        LOG_ERROR("failed to chdir to " + target_root + ": " + strerror(errno));
-        return false;
-    }
+    // if (chdir(target_root.c_str()) != 0) {
+    //    LOG_ERROR("failed to chdir to " + target_root + ": " + strerror(errno));
+    //    return false;
+    // }
     
-    std::string stock_root = ".";
+    std::string stock_root = target_root; // Was "." before
     
     // FIX 4: Scan child mount points before overlay mount
     auto mount_seq = get_child_mounts(target_root);
@@ -336,7 +349,7 @@ bool mount_overlay(
         
         LOG_DEBUG("Restoring child mount: " + mount_point + " (relative: " + relative + ")");
         
-        if (!mount_overlay_child(mount_point, relative, module_roots, stock_root_relative, disable_umount)) {
+        if (!mount_overlay_child(mount_point, relative, module_roots, stock_root_relative, disable_umount, partitions)) {
             LOG_WARN("failed to restore child mount " + mount_point);
         }
     }
@@ -344,7 +357,7 @@ bool mount_overlay(
     // FIX 6: Fix system partition symlinks covered by module directories (e.g. /system/vendor -> /vendor)
     // When a module contains system/vendor directory, overlayfs will cover the original symlink, causing /system/vendor to become a directory without original system files.
     // We need to detect this situation and bind mount the corresponding partition from root directory back.
-    std::vector<std::string> partitions = {"vendor", "product", "system_ext", "odm", "oem"};
+    // Use the provided partitions list instead of hardcoded one
     for (const auto& part : partitions) {
         std::string root_part = "/" + part;
         std::string target_part = target_root + "/" + part;

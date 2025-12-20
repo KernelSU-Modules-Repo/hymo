@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <algorithm>
 
@@ -24,7 +25,7 @@ enum class NodeFileType {
 struct Node {
     std::string name;
     NodeFileType file_type;
-    std::map<std::string, Node> children;
+    std::unordered_map<std::string, Node> children;
     fs::path module_path;
     bool replace = false;
     bool skip = false;

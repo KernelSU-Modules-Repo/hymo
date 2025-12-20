@@ -51,6 +51,7 @@ static void print_help() {
     std::cout << "  set-mode <mod_id> <mode>  Set mount mode for a module (auto, hymofs, overlay, magic, none)\n";
     std::cout << "  add-rule <mod_id> <path> <mode> Add a custom mount rule for a module\n";
     std::cout << "  remove-rule <mod_id> <path> Remove a custom mount rule for a module\n";
+    std::cout << "  fix-mounts      Fix mount namespace issues (reorder mnt_id)\n";
     std::cout << "  sync-partitions Scan modules and auto-add new partitions to config\n\n";
     std::cout << "Options:\n";
     std::cout << "  -c, --config FILE       Config file path\n";
@@ -416,7 +417,7 @@ int main(int argc, char* argv[]) {
                 if (HymoFS::is_available()) {
                     int ver = HymoFS::get_protocol_version();
                     std::cout << "HymoFS Protocol Version: " << HymoFS::EXPECTED_PROTOCOL_VERSION << "\n";
-                    std::cout << "HymoFS Config Version (Atomic): " << ver << "\n";
+                    std::cout << "HymoFS Atomiconfig Version: " << ver << "\n";
                 } else {
                     std::cout << "HymoFS not available.\n";
                 }
@@ -443,6 +444,20 @@ int main(int argc, char* argv[]) {
                         LOG_INFO("Kernel debug logging " + std::string(enable ? "enabled" : "disabled"));
                     } else {
                         std::cerr << "Failed to set kernel debug logging.\n";
+                        return 1;
+                    }
+                } else {
+                    std::cerr << "HymoFS not available.\n";
+                    return 1;
+                }
+                return 0;
+            } else if (cli.command == "fix-mounts") {
+                if (HymoFS::is_available()) {
+                    if (HymoFS::fix_mounts()) {
+                        std::cout << "Mount namespace fixed (mnt_id reordered).\n";
+                        LOG_INFO("Mount namespace fixed via CLI.");
+                    } else {
+                        std::cerr << "Failed to fix mount namespace.\n";
                         return 1;
                     }
                 } else {
@@ -622,6 +637,16 @@ int main(int argc, char* argv[]) {
                         LOG_INFO("Stealth mode set to: " + std::string(config.enable_stealth ? "true" : "false"));
                     } else {
                         LOG_WARN("Failed to set stealth mode.");
+                    }
+
+                    // Fix mount namespace (reorder mnt_id) if stealth is enabled
+                    // This ensures that any new mounts created during reload are also hidden/reordered
+                    if (config.enable_stealth) {
+                        if (HymoFS::fix_mounts()) {
+                            LOG_INFO("Mount namespace fixed (mnt_id reordered) after reload.");
+                        } else {
+                            LOG_WARN("Failed to fix mount namespace after reload.");
+                        }
                     }
 
                     // 5. Update Runtime State (daemon_state.json)
@@ -816,6 +841,16 @@ int main(int argc, char* argv[]) {
                     
                     // Execute plan
                     exec_result = execute_plan(plan, config);
+
+                    // Fix mount namespace (reorder mnt_id) if stealth is enabled
+                    // This ensures that the newly created mirror mount (tmpfs/ext4) is also hidden/reordered
+                    if (config.enable_stealth) {
+                        if (HymoFS::fix_mounts()) {
+                            LOG_INFO("Mount namespace fixed (mnt_id reordered) after mounting.");
+                        } else {
+                            LOG_WARN("Failed to fix mount namespace after mounting.");
+                        }
+                    }
                 } else {
                     LOG_ERROR("Mirror sync failed. Aborting mirror strategy.");
                     umount(MIRROR_DIR.c_str());

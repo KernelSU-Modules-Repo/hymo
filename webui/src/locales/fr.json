@@ -85,7 +85,8 @@
     "hotUnmount": "Démontage à chaud (HymoFS)",
     "customRules": "Règles personnalisées",
     "addRule": "Ajouter une règle",
-    "removeRule": "Supprimer la règle"
+    "removeRule": "Supprimer la règle",
+    "checkConflicts": "Vérifier les conflits"
   },
   "logs": {
     "title": "Journaux Système",

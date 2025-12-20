@@ -85,7 +85,8 @@
     "hotUnmount": "ホットアンマウント (HymoFS)",
     "customRules": "カスタムルール",
     "addRule": "ルールを追加",
-    "removeRule": "ルールを削除"
+    "removeRule": "ルールを削除",
+    "checkConflicts": "競合を確認"
   },
   "logs": {
     "title": "システムログ",

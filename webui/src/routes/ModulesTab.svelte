@@ -10,6 +10,9 @@
   let searchQuery = $state('');
   let filterType = $state('all');
   let expandedMap = $state({}); // Track expanded modules by ID
+  let conflicts = $state([]);
+  let showConflicts = $state(false);
+  let checkingConflicts = $state(false);
 
   onMount(() => {
     store.loadModules();
@@ -22,6 +25,22 @@
     const matchFilter = filterType === 'all' || m.mode === filterType;
     return matchSearch && matchFilter;
   }));
+
+  async function checkConflicts() {
+    checkingConflicts = true;
+    try {
+        conflicts = await API.checkConflicts();
+        if (conflicts.length > 0) {
+            showConflicts = true;
+        } else {
+            store.showToast("No conflicts found", "success");
+        }
+    } catch (e) {
+        store.showToast("Failed to check conflicts", "error");
+    } finally {
+        checkingConflicts = false;
+    }
+  }
 
   function toggleExpand(id) {
     if (expandedMap[id]) {
@@ -77,6 +96,13 @@
   <p class="desc-text">
     {store.L.modules.desc}
   </p>
+  <button class="conflict-btn" onclick={checkConflicts} disabled={checkingConflicts} title={store.L.modules.checkConflicts}>
+    {#if checkingConflicts}
+        <span>...</span>
+    {:else}
+        <span>{store.L.modules.checkConflicts}</span>
+    {/if}
+  </button>
 </div>
 
 <div class="search-container">
@@ -218,6 +244,25 @@
       </div>
     {/each}
   </div>
+{/if}
+
+{#if showConflicts}
+<div class="modal-overlay" onclick={() => showConflicts = false} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && (showConflicts = false)}>
+    <div class="modal-content" onclick={(e) => e.stopPropagation()} role="button" tabindex="0" onkeydown={(e) => e.stopPropagation()}>
+        <h3>File Conflicts</h3>
+        <div class="conflict-list">
+            {#each conflicts as c}
+                <div class="conflict-item">
+                    <div class="conflict-path">{c.path}</div>
+                    <div class="conflict-detail">
+                        <span class="owner">{c.owner}</span> overrides <span class="contender">{c.contender}</span>
+                    </div>
+                </div>
+            {/each}
+        </div>
+        <button class="btn-filled" onclick={() => showConflicts = false}>Close</button>
+    </div>
+</div>
 {/if}
 
 <div class="bottom-actions">

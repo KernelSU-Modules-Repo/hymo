@@ -3,6 +3,7 @@
 #include "../mount/overlay.hpp"
 #include "../mount/magic.hpp"
 #include "../utils.hpp"
+#include "../defs.hpp"
 #include <algorithm>
 
 namespace hymo {
@@ -40,7 +41,12 @@ ExecutionResult execute_plan(const MountPlan& plan, const Config& config) {
         
         LOG_DEBUG("Mounting " + op.target + " [OVERLAY] (" + std::to_string(lowerdir_strings.size()) + " layers)");
         
-        if (!mount_overlay(op.target, lowerdir_strings, std::nullopt, std::nullopt, config.disable_umount)) {
+        std::vector<std::string> all_partitions = BUILTIN_PARTITIONS;
+        for (const auto& part : config.partitions) {
+            all_partitions.push_back(part);
+        }
+
+        if (!mount_overlay(op.target, lowerdir_strings, std::nullopt, std::nullopt, config.disable_umount, all_partitions)) {
             LOG_WARN("OverlayFS failed for " + op.target + ". Triggering fallback.");
             
             // Fallback: Add all involved modules to magic queue

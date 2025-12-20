@@ -85,7 +85,8 @@
     "hotUnmount": "Desmontaje en caliente (HymoFS)",
     "customRules": "Reglas personalizadas",
     "addRule": "Añadir regla",
-    "removeRule": "Eliminar regla"
+    "removeRule": "Eliminar regla",
+    "checkConflicts": "Comprobar conflictos"
   },
   "logs": {
     "title": "Registros del Sistema",

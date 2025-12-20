@@ -42,6 +42,14 @@ export const MockAPI = {
         console.log("[Mock] Module Modes Saved:", modules.map(m => `${m.id}=${m.mode}`));
     },
 
+    checkConflicts: async () => {
+        await delay(800);
+        return [
+            { path: "/system/bin/test", owner: "magisk_module_test", contender: "my_custom_mod" },
+            { path: "/system/etc/hosts", owner: "magisk_module_test", contender: "youtube_revanced" }
+        ];
+    },
+
     readLogs: async () => {
         await delay(400);
         return MOCK_STATE.logs.join('\n');

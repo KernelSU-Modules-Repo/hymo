@@ -28,6 +28,7 @@ public:
     static bool add_rule(const std::string& src, const std::string& target, int type = 0);
     static bool delete_rule(const std::string& src);
     static bool hide_path(const std::string& path);
+    static bool add_merge_rule(const std::string& src, const std::string& target);
     
     // Helper to recursively walk a directory and generate rules
     static bool add_rules_from_directory(const fs::path& target_base, const fs::path& module_dir);
@@ -37,6 +38,7 @@ public:
     static std::string get_active_rules();
     static bool set_debug(bool enable);
     static bool set_stealth(bool enable);
+    static bool fix_mounts();
     static bool hide_overlay_xattrs(const std::string& path);
 };
 

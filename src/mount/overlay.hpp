@@ -16,7 +16,8 @@ bool mount_overlay(
     const std::vector<std::string>& module_roots,
     std::optional<fs::path> upperdir,
     std::optional<fs::path> workdir,
-    bool disable_umount
+    bool disable_umount,
+    const std::vector<std::string>& partitions = {}
 );
 
 // Bind mount helper
