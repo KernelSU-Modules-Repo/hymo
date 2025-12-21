@@ -1,14 +1,18 @@
-## v1.3.1
+## v1.4.0
 
-Changes since v1.3.0:
-* feat: Refactor GPG signing process with enhanced key import and output verification
-* feat: Enhance GPG signing process with key verification and output checks
-* feat: Avoid presetting GPG passphrase to prevent agent errors
-* feat: Add auto-scan for custom partitions and improve WebUI UX
-* feat: add none mount,fix custom rule
-* feat: add stealth mode with enhanced hiding capabilities
-* [skip ci] Update KernelSU json, changelog for v1.3.0
-* feat: upgrade protocol to v5 with integrated inject and WebUI enhancement
-* docs: 添加命令行工具使用说明及命令列表
-* [skip ci] Update KernelSU json, changelog for v1.2.0
-* Refactor HymoFS to use IOCTL interface for control operations
+Changes since v1.3.1:
+* Merge pull request #30 from Anatdx/feat
+* feat: Update version to v1.3.1 and enhance conflict checking functionality
+* Remove GPG signing from build workflow
+* Merge pull request #28 from Anatdx/dependabot/npm_and_yarn/webui/svelte-5.46.0
+* build(deps-dev): bump svelte from 5.45.6 to 5.46.0 in /webui
+* Merge pull request #29 from Anatdx/dependabot/npm_and_yarn/webui/vite-7.3.0
+* Remove Telegram notification from build process
+* build(deps-dev): bump vite from 7.2.7 to 7.3.0 in /webui
+* Merge pull request #27 from Anatdx/feat
+* feat: Add Telegram notification for successful builds in CI workflows
+* [skip ci] Update KernelSU json, changelog for v1.3.1
+* Merge pull request #26 from Anatdx/feat
+* Update HymoFS patch URLs in README_ZH.md
+* Fix URL in README for HymoFS patch
+* Update HymoFS patch URLs in README.md
