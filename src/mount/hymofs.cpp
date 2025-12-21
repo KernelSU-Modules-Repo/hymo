@@ -35,6 +35,7 @@ struct hymo_ioctl_list_arg {
 #define HYMO_IOC_REORDER_MNT_ID _IO(HYMO_IOC_MAGIC, 9)
 #define HYMO_IOC_SET_STEALTH _IOW(HYMO_IOC_MAGIC, 10, int)
 #define HYMO_IOC_HIDE_OVERLAY_XATTRS _IOW(HYMO_IOC_MAGIC, 11, struct hymo_ioctl_arg)
+#define HYMO_IOC_ADD_MERGE_RULE _IOW(HYMO_IOC_MAGIC, 12, struct hymo_ioctl_arg)
 
 int HymoFS::get_protocol_version() {
     int fd = open(HYMO_DEV, O_RDONLY);
@@ -50,7 +51,12 @@ int HymoFS::get_protocol_version() {
 HymoFSStatus HymoFS::check_status() {
     if (!fs::exists(HYMO_DEV)) return HymoFSStatus::NotPresent;
     
-    // Assume available if device exists
+    int k_ver = get_protocol_version();
+    if (k_ver < 0) return HymoFSStatus::NotPresent;
+
+    if (k_ver < EXPECTED_PROTOCOL_VERSION) return HymoFSStatus::KernelTooOld;
+    if (k_ver > EXPECTED_PROTOCOL_VERSION) return HymoFSStatus::ModuleTooOld;
+    
     return HymoFSStatus::Available;
 }
 
@@ -77,6 +83,21 @@ bool HymoFS::add_rule(const std::string& src, const std::string& target, int typ
     };
     
     int ret = ioctl(fd, HYMO_IOC_ADD_RULE, &arg);
+    close(fd);
+    return ret == 0;
+}
+
+bool HymoFS::add_merge_rule(const std::string& src, const std::string& target) {
+    int fd = open(HYMO_DEV, O_RDWR);
+    if (fd < 0) return false;
+    
+    struct hymo_ioctl_arg arg = {
+        .src = src.c_str(),
+        .target = target.c_str(),
+        .type = 0
+    };
+    
+    int ret = ioctl(fd, HYMO_IOC_ADD_MERGE_RULE, &arg);
     close(fd);
     return ret == 0;
 }
@@ -225,6 +246,21 @@ bool HymoFS::set_stealth(bool enable) {
     int ret = ioctl(fd, HYMO_IOC_SET_STEALTH, &val);
     if (ret != 0) {
         perror("HymoFS: Failed to set stealth mode");
+    }
+    close(fd);
+    return ret == 0;
+}
+
+bool HymoFS::fix_mounts() {
+    int fd = open(HYMO_DEV, O_RDWR);
+    if (fd < 0) {
+        perror("HymoFS: Failed to open device");
+        return false;
+    }
+    
+    int ret = ioctl(fd, HYMO_IOC_REORDER_MNT_ID);
+    if (ret != 0) {
+        perror("HymoFS: Failed to reorder mount IDs");
     }
     close(fd);
     return ret == 0;

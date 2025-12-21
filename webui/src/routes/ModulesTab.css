@@ -207,16 +207,37 @@
   cursor: pointer;
 }
 
-/* New extracted classes */
 .desc-card {
   padding: 16px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border-radius: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end; /* Align button to the right */
 }
 
 .desc-text {
   margin: 0;
   font-size: 14px;
-  color: var(--md-sys-color-on-surface-variant);
   line-height: 1.5;
+  width: 100%; /* Ensure text takes full width */
+}
+
+.conflict-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface); /* Neutral background */
+  color: var(--md-sys-color-on-surface);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--md-sys-elevation-1);
+  transition: all 0.2s ease;
 }
 
 .skeleton-group {
@@ -339,4 +360,66 @@
 
 .btn-icon.delete {
   color: var(--md-sys-color-error);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--md-sys-color-surface);
+    padding: 24px;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+.conflict-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.conflict-item {
+    background: var(--md-sys-color-surface-container-low);
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.conflict-path {
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    margin-bottom: 4px;
+}
+
+.conflict-detail {
+    font-size: 12px;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.owner {
+    color: var(--md-sys-color-primary);
+    font-weight: bold;
+}
+
+.contender {
+    color: var(--md-sys-color-error);
+    text-decoration: line-through;
 }

@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdint>
 
-#define HYMO_PROTOCOL_VERSION 4
+#define HYMO_PROTOCOL_VERSION 6
 
 namespace hymo {
 

@@ -27,6 +27,7 @@ static void parse_module_prop(const fs::path& module_path, Module& module) {
         else if (key == "version") module.version = value;
         else if (key == "author") module.author = value;
         else if (key == "description") module.description = value;
+        else if (key == "mode") module.mode = value;
     }
 }
 
@@ -81,16 +82,17 @@ std::vector<Module> scan_modules(const fs::path& source_dir, const Config& confi
                 continue;
             }
             
-            std::string mode = "auto";
+            std::string global_mode = "";
             auto it = config.module_modes.find(id);
             if (it != config.module_modes.end()) {
-                mode = it->second;
+                global_mode = it->second;
             }
             
             Module mod;
             mod.id = id;
             mod.source_path = entry.path();
-            mod.mode = mode;
+            mod.mode = "auto";
+
             auto rules_it = config.module_rules.find(id);
             if (rules_it != config.module_rules.end()) {
                 for (const auto& rule_cfg : rules_it->second) {
@@ -101,6 +103,11 @@ std::vector<Module> scan_modules(const fs::path& source_dir, const Config& confi
             parse_module_rules(entry.path(), mod);
 
             parse_module_prop(entry.path(), mod);
+
+            if (!global_mode.empty()) {
+                mod.mode = global_mode;
+            }
+
             modules.push_back(mod);
         }
         

@@ -36,7 +36,7 @@ void update_hymofs_mappings(
     const Config& config,
     const std::vector<Module>& modules,
     const fs::path& storage_root,
-    const MountPlan& plan
+    MountPlan& plan
 );
 
 } // namespace hymo

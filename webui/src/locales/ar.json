@@ -85,7 +85,8 @@
     "hotUnmount": "إلغاء تثبيت سريع (HymoFS)",
     "customRules": "قواعد مخصصة",
     "addRule": "إضافة قاعدة",
-    "removeRule": "إزالة القاعدة"
+    "removeRule": "إزالة القاعدة",
+    "checkConflicts": "تحقق من التعارضات"
   },
   "logs": {
     "title": "سجلات النظام",

@@ -102,6 +102,19 @@ const RealAPI = {
     if (errno !== 0) throw new Error('Failed to save modes');
   },
 
+  checkConflicts: async () => {
+    const cmd = `${PATHS.BINARY} check-conflicts`;
+    try {
+      const { errno, stdout } = await ksuExec(cmd);
+      if (errno === 0 && stdout) {
+        return JSON.parse(stdout);
+      }
+    } catch (e) {
+      console.error("Check conflicts failed:", e);
+    }
+    return [];
+  },
+
   saveRules: async (modules) => {
     let content = "# Module Rules\n";
     modules.forEach(m => {

@@ -85,7 +85,8 @@
     "hotUnmount": "Hot Unmount (HymoFS)",
     "customRules": "Custom Rules",
     "addRule": "Add Rule",
-    "removeRule": "Remove Rule"
+    "removeRule": "Remove Rule",
+    "checkConflicts": "Check Conflicts"
   },
   "logs": {
     "title": "System Logs",

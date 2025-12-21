@@ -292,7 +292,7 @@ void update_hymofs_mappings(
     const Config& config,
     const std::vector<Module>& modules,
     const fs::path& storage_root,
-    const MountPlan& plan
+    MountPlan& plan
 ) {
     if (!HymoFS::is_available()) return;
 
@@ -305,6 +305,7 @@ void update_hymofs_mappings(
     }
 
     std::vector<AddRule> add_rules;
+    std::vector<AddRule> merge_rules;
     std::vector<std::string> hide_rules;
 
     // Process explicit hide rules from module configuration
@@ -344,7 +345,8 @@ void update_hymofs_mappings(
             if (!fs::exists(part_root)) continue;
 
             try {
-                for (const auto& entry : fs::recursive_directory_iterator(part_root)) {
+                for (auto dir_it = fs::recursive_directory_iterator(part_root); dir_it != fs::recursive_directory_iterator(); ++dir_it) {
+                    const auto& entry = *dir_it;
                     fs::path rel = fs::relative(entry.path(), mod_path);
                     fs::path virtual_path = fs::path("/") / rel;
                     std::string path_str = virtual_path.string();
@@ -367,8 +369,49 @@ void update_hymofs_mappings(
                         continue;
                     }
                     
-                    if (plan.is_covered_by_overlay(virtual_path.string())) {
+                    // Check if covered by overlay
+                    bool covered = false;
+                    // Use reference to allow modification of lowerdirs
+                    for (auto& op : plan.overlay_ops) {
+                        std::string p_str = virtual_path.string();
+                        std::string t_str = op.target;
+                        
+                        bool match = (p_str == t_str) || 
+                                     (p_str.size() > t_str.size() && 
+                                      p_str.compare(0, t_str.size(), t_str) == 0 && 
+                                      p_str[t_str.size()] == '/');
+                        
+                        if (match) {
+                            covered = true;
+                            // Add layer if not present
+                            if (t_str.size() > 1) {
+                                fs::path layer_path = mod_path / t_str.substr(1);
+                                bool exists = false;
+                                for(const auto& l : op.lowerdirs) {
+                                    if (l == layer_path) {
+                                        exists = true;
+                                        break;
+                                    }
+                                }
+                                if (!exists && fs::exists(layer_path)) {
+                                    op.lowerdirs.push_back(layer_path);
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    if (covered) {
                         continue;
+                    }
+
+                    if (entry.is_directory()) {
+                        std::string final_virtual_path = resolve_path_for_hymofs(virtual_path.string());
+                        if (fs::exists(final_virtual_path) && fs::is_directory(final_virtual_path)) {
+                            merge_rules.push_back({final_virtual_path, entry.path().string(), DT_DIR});
+                            dir_it.disable_recursion_pending(); // Kernel handles children via merge
+                            continue;
+                        }
                     }
                     
                     if (entry.is_regular_file() || entry.is_symlink()) {
@@ -409,6 +452,9 @@ void update_hymofs_mappings(
     // Apply rules: Add files first (auto-injects parents), then hide
     for (const auto& rule : add_rules) {
         HymoFS::add_rule(rule.src, rule.target, rule.type);
+    }
+    for (const auto& rule : merge_rules) {
+        HymoFS::add_merge_rule(rule.src, rule.target);
     }
     for (const auto& path : hide_rules) {
         HymoFS::hide_path(path);
