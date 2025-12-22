@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "Ignorer le Désaccord de Version HymoFS",
     "enableKernelDebug": "Activer le débogage du noyau",
     "enableStealth": "Activer le mode furtif",
+    "avcSpoof": "AVC Log Spoofing",
     "showAdvanced": "Afficher les options avancées",
     "moduleDir": "Répertoire Modules",
     "tempDir": "Répertoire Temp",
@@ -86,7 +87,9 @@
     "customRules": "Règles personnalisées",
     "addRule": "Ajouter une règle",
     "removeRule": "Supprimer la règle",
-    "checkConflicts": "Vérifier les conflits"
+    "checkConflicts": "Vérifier les conflits",
+    "noConflicts": "Aucun conflit trouvé",
+    "checkConflictsFail": "Échec de la vérification des conflits"
   },
   "logs": {
     "title": "Journaux Système",

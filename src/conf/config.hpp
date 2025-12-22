@@ -26,6 +26,7 @@ struct Config {
     bool ignore_protocol_mismatch = false;
     bool enable_kernel_debug = false;
     bool enable_stealth = true; // Default to true
+    bool avc_spoof = false;
     std::vector<std::string> partitions;
     std::map<std::string, std::string> module_modes;
     std::map<std::string, std::vector<ModuleRuleConfig>> module_rules;

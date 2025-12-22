@@ -5,6 +5,7 @@
 #include "../utils.hpp"
 #include <sys/mount.h>
 #include <sys/syscall.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <algorithm>
 #include <set>
+#include <map>
 
 namespace hymo {
 
@@ -60,7 +62,8 @@ static bool mount_overlayfs_modern(
     const std::string& lowerdir_config,
     const std::optional<std::string>& upperdir,
     const std::optional<std::string>& workdir,
-    const std::string& dest
+    const std::string& dest,
+    const std::string& mount_source
 ) {
     int fs_fd = fsopen("overlay", FSOPEN_CLOEXEC);
     if (fs_fd < 0) {
@@ -80,7 +83,7 @@ static bool mount_overlayfs_modern(
         }
     }
     
-    if (success && fsconfig(fs_fd, FSCONFIG_SET_STRING, "source", KSU_OVERLAY_SOURCE, 0) < 0) {
+    if (success && fsconfig(fs_fd, FSCONFIG_SET_STRING, "source", mount_source.c_str(), 0) < 0) {
         LOG_WARN("fsconfig source failed: " + std::string(strerror(errno)));
         success = false;
     }
@@ -117,14 +120,15 @@ static bool mount_overlayfs_legacy(
     const std::string& lowerdir_config,
     const std::optional<std::string>& upperdir,
     const std::optional<std::string>& workdir,
-    const std::string& dest
+    const std::string& dest,
+    const std::string& mount_source
 ) {
     std::string data = "lowerdir=" + lowerdir_config;
     if (upperdir && workdir) {
         data += ",upperdir=" + *upperdir + ",workdir=" + *workdir;
     }
     
-    if (mount(KSU_OVERLAY_SOURCE, dest.c_str(), "overlay", 0, data.c_str()) != 0) {
+    if (mount(mount_source.c_str(), dest.c_str(), "overlay", 0, data.c_str()) != 0) {
         LOG_ERROR("legacy mount failed: " + std::string(strerror(errno)));
         return false;
     }
@@ -162,6 +166,13 @@ static std::vector<std::string> get_child_mounts(const std::string& target_root)
     mounts.erase(std::unique(mounts.begin(), mounts.end()), mounts.end());
     
     return mounts;
+}
+
+// Helper to create mirror path
+static std::string get_mirror_path(const std::string& target_root) {
+    std::string clean_path = target_root;
+    std::replace(clean_path.begin(), clean_path.end(), '/', '_');
+    return "/dev/hymo_mirror/" + clean_path;
 }
 
 bool bind_mount(const fs::path& from, const fs::path& to, bool disable_umount) {
@@ -202,6 +213,7 @@ static bool mount_overlay_child(
     const std::string& relative,
     const std::vector<std::string>& module_roots,
     const std::string& stock_root,
+    const std::string& mount_source,
     bool disable_umount,
     const std::vector<std::string>& partitions
 ) {
@@ -254,9 +266,9 @@ static bool mount_overlay_child(
     lowerdir_config += ":" + std::string(stock_root);
     
     // Try modern API
-    if (!mount_overlayfs_modern(lowerdir_config, std::nullopt, std::nullopt, mount_point)) {
+    if (!mount_overlayfs_modern(lowerdir_config, std::nullopt, std::nullopt, mount_point, mount_source)) {
         // Fallback to legacy method
-        if (!mount_overlayfs_legacy(lowerdir_config, std::nullopt, std::nullopt, mount_point)) {
+        if (!mount_overlayfs_legacy(lowerdir_config, std::nullopt, std::nullopt, mount_point, mount_source)) {
             LOG_WARN("failed to overlay child " + mount_point + ", fallback to bind mount");
             return bind_mount(stock_root, mount_point, disable_umount);
         }
@@ -270,39 +282,70 @@ static bool mount_overlay_child(
 }
 
 bool mount_overlay(
-    const std::string& target_root,
+    const std::string& target_root_raw,
     const std::vector<std::string>& module_roots,
+    const std::string& mount_source,
     std::optional<fs::path> upperdir,
     std::optional<fs::path> workdir,
     bool disable_umount,
     const std::vector<std::string>& partitions
 ) {
+    std::string target_root = target_root_raw;
+    try {
+        if (fs::exists(target_root_raw)) {
+            target_root = fs::canonical(target_root_raw).string();
+            if (target_root != target_root_raw) {
+                LOG_DEBUG("Resolved symlink: " + target_root_raw + " -> " + target_root);
+            }
+        }
+    } catch (const std::exception& e) {
+        LOG_WARN("Failed to resolve path " + target_root_raw + ": " + e.what());
+    }
+
     LOG_INFO("Starting robust overlay mount for " + target_root);
     
-    // FIX 3: Ensure correct chdir before mounting
-    // if (chdir(target_root.c_str()) != 0) {
-    //    LOG_ERROR("failed to chdir to " + target_root + ": " + strerror(errno));
-    //    return false;
-    // }
+    // STRATEGY: Mirror Mount
+    // 1. Bind mount target_root (recursively) to a private mirror location.
+    // 2. Use the mirror as the lowerdir base.
+    // 3. Restore child mounts by binding from the mirror.
     
-    std::string stock_root = target_root; // Was "." before
+    std::string mirror_path = get_mirror_path(target_root);
     
-    // FIX 4: Scan child mount points before overlay mount
+    // Ensure mirror base exists
+    if (!fs::exists("/dev/hymo_mirror")) {
+        mkdir("/dev/hymo_mirror", 0755);
+    }
+    if (!fs::exists(mirror_path)) {
+        mkdir(mirror_path.c_str(), 0755);
+    }
+    
+    // Bind mount target to mirror (Recursive is KEY to seeing child mounts)
+    // We use MS_REC to ensure we capture all sub-mounts (vendor, product, etc.)
+    if (mount(target_root.c_str(), mirror_path.c_str(), nullptr, MS_BIND | MS_REC, nullptr) != 0) {
+        LOG_ERROR("Failed to create mirror for " + target_root + ": " + strerror(errno));
+        return false;
+    }
+    // Make mirror private so our changes don't propagate back
+    mount(nullptr, mirror_path.c_str(), nullptr, MS_PRIVATE, nullptr);
+
+    LOG_DEBUG("Created mirror at " + mirror_path);
+    
+    std::string stock_root = mirror_path; // Use mirror as the stock root source
+    
+    // Scan child mounts (we still need the list to know WHAT to restore)
     auto mount_seq = get_child_mounts(target_root);
     
     if (!mount_seq.empty()) {
         LOG_DEBUG("Found " + std::to_string(mount_seq.size()) + " child mounts under " + target_root);
     }
     
-    // Build lowerdir config
+    // Build lowerdir config using MIRROR as the base
     std::string lowerdir_config;
     for (size_t i = 0; i < module_roots.size(); ++i) {
         lowerdir_config += module_roots[i];
-        if (i < module_roots.size() - 1) {
-            lowerdir_config += ":";
-        }
+        lowerdir_config += ":";
     }
-    lowerdir_config += ":" + target_root;
+    lowerdir_config += mirror_path; // Use mirror as lowerdir!
     
     LOG_DEBUG("lowerdir=" + lowerdir_config);
     
@@ -317,14 +360,16 @@ bool mount_overlay(
     }
     
     // Mount root overlay
-    bool success = mount_overlayfs_modern(lowerdir_config, upperdir_str, workdir_str, target_root);
+    bool success = mount_overlayfs_modern(lowerdir_config, upperdir_str, workdir_str, target_root, mount_source);
     if (!success) {
         LOG_WARN("fsopen mount failed, fallback to legacy mount");
-        success = mount_overlayfs_legacy(lowerdir_config, upperdir_str, workdir_str, target_root);
+        success = mount_overlayfs_legacy(lowerdir_config, upperdir_str, workdir_str, target_root, mount_source);
     }
     
     if (!success) {
         LOG_ERROR("mount overlayfs for root " + target_root + " failed: " + strerror(errno));
+        // Cleanup mirror
+        umount2(mirror_path.c_str(), MNT_DETACH);
         return false;
     }
     
@@ -332,7 +377,7 @@ bool mount_overlay(
         send_unmountable(target_root);
     }
     
-    // FIX 5: Restore all child mount points
+    // Restore child mounts using the MIRROR as source
     for (const auto& mount_point : mount_seq) {
         // Calculate relative path
         std::string relative = mount_point;
@@ -340,24 +385,18 @@ bool mount_overlay(
             relative = mount_point.substr(target_root.length());
         }
         
-        std::string stock_root_relative = stock_root + relative;
+        // Source is inside the mirror
+        std::string source_path = mirror_path + relative;
         
-        if (!fs::exists(stock_root_relative)) {
-            LOG_DEBUG("Stock root for child mount doesn't exist: " + stock_root_relative);
-            continue;
-        }
+        LOG_DEBUG("Restoring child mount: " + mount_point + " from " + source_path);
         
-        LOG_DEBUG("Restoring child mount: " + mount_point + " (relative: " + relative + ")");
-        
-        if (!mount_overlay_child(mount_point, relative, module_roots, stock_root_relative, disable_umount, partitions)) {
+        if (!mount_overlay_child(mount_point, relative, module_roots, source_path, mount_source, disable_umount, partitions)) {
             LOG_WARN("failed to restore child mount " + mount_point);
         }
     }
 
-    // FIX 6: Fix system partition symlinks covered by module directories (e.g. /system/vendor -> /vendor)
-    // When a module contains system/vendor directory, overlayfs will cover the original symlink, causing /system/vendor to become a directory without original system files.
-    // We need to detect this situation and bind mount the corresponding partition from root directory back.
-    // Use the provided partitions list instead of hardcoded one
+    // Fix system partition symlinks (e.g. /system/vendor -> /vendor)
+    // The mirror has the correct structure.
     for (const auto& part : partitions) {
         std::string root_part = "/" + part;
         std::string target_part = target_root + "/" + part;

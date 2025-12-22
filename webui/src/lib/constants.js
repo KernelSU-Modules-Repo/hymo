@@ -17,6 +17,7 @@ export const DEFAULT_CONFIG = {
   ignore_protocol_mismatch: false,
   enable_kernel_debug: false,
   enable_stealth: true,
+  avc_spoof: false,
   hymofs_available: false,
   hymofs_status: 1 // 1 = NotPresent (default assumption)
 };

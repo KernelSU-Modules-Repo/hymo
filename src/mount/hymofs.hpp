@@ -4,6 +4,7 @@
 #include <vector>
 #include <filesystem>
 #include "defs.hpp"
+#include "hymo_magic.h"
 
 namespace fs = std::filesystem;
 
@@ -27,6 +28,7 @@ public:
     static bool clear_rules();
     static bool add_rule(const std::string& src, const std::string& target, int type = 0);
     static bool delete_rule(const std::string& src);
+    static bool set_avc_log_spoofing(bool enabled);
     static bool hide_path(const std::string& path);
     static bool add_merge_rule(const std::string& src, const std::string& target);
     

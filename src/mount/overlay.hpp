@@ -14,6 +14,7 @@ namespace hymo {
 bool mount_overlay(
     const std::string& target_root,
     const std::vector<std::string>& module_roots,
+    const std::string& mount_source,
     std::optional<fs::path> upperdir,
     std::optional<fs::path> workdir,
     bool disable_umount,

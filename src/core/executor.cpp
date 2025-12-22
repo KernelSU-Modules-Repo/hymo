@@ -46,7 +46,7 @@ ExecutionResult execute_plan(const MountPlan& plan, const Config& config) {
             all_partitions.push_back(part);
         }
 
-        if (!mount_overlay(op.target, lowerdir_strings, std::nullopt, std::nullopt, config.disable_umount, all_partitions)) {
+        if (!mount_overlay(op.target, lowerdir_strings, config.mountsource, std::nullopt, std::nullopt, config.disable_umount, all_partitions)) {
             LOG_WARN("OverlayFS failed for " + op.target + ". Triggering fallback.");
             
             // Fallback: Add all involved modules to magic queue

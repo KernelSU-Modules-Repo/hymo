@@ -33,10 +33,10 @@
         if (conflicts.length > 0) {
             showConflicts = true;
         } else {
-            store.showToast("No conflicts found", "success");
+            store.showToast(store.L.modules.noConflicts, "success");
         }
     } catch (e) {
-        store.showToast("Failed to check conflicts", "error");
+        store.showToast(store.L.modules.checkConflictsFail, "error");
     } finally {
         checkingConflicts = false;
     }

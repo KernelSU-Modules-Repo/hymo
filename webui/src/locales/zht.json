@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "忽略HymoFS版本不匹配",
     "enableKernelDebug": "啟用核心偵錯日誌",
     "enableStealth": "啟用隱身模式",
+    "avcSpoof": "AVC 日誌欺騙",
     "showAdvanced": "顯示進階選項",
     "moduleDir": "模組路徑",
     "tempDir": "臨時路徑",
@@ -86,7 +87,9 @@
     "customRules": "自定義掛載",
     "addRule": "新增規則",
     "removeRule": "移除規則",
-    "checkConflicts": "檢查衝突"
+    "checkConflicts": "檢查衝突",
+    "noConflicts": "未發現衝突",
+    "checkConflictsFail": "檢查衝突失敗"
   },
   "logs": {
     "title": "執行日誌",

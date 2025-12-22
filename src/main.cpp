@@ -45,7 +45,7 @@ static void print_help() {
     std::cout << "  version         Show HymoFS protocol and config version\n";
     std::cout << "  list            List all active HymoFS rules\n";
     std::cout << "  debug <on|off>  Enable/Disable kernel debug logging\n";
-    std::cout << "  raw <cmd> ...   Execute raw HymoFS command (add/hide/delete)\n";
+    std::cout << "  raw <cmd> ...   Execute raw HymoFS command (add/hide/delete/merge)\n";
     std::cout << "  add <mod_id>    Add module rules to HymoFS\n";
     std::cout << "  delete <mod_id> Delete module rules from HymoFS\n";
     std::cout << "  set-mode <mod_id> <mode>  Set mount mode for a module (auto, hymofs, overlay, magic, none)\n";
@@ -238,6 +238,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "  \"ignore_protocol_mismatch\": " << (config.ignore_protocol_mismatch ? "true" : "false") << ",\n";
                 std::cout << "  \"enable_kernel_debug\": " << (config.enable_kernel_debug ? "true" : "false") << ",\n";
                 std::cout << "  \"enable_stealth\": " << (config.enable_stealth ? "true" : "false") << ",\n";
+                std::cout << "  \"avc_spoof\": " << (config.avc_spoof ? "true" : "false") << ",\n";
                 std::cout << "  \"hymofs_available\": " << (HymoFS::is_available() ? "true" : "false") << ",\n";
                 std::cout << "  \"hymofs_status\": " << (int)HymoFS::check_status() << ",\n";
                 std::cout << "  \"partitions\": [";
@@ -458,6 +459,24 @@ int main(int argc, char* argv[]) {
                         LOG_INFO("Mount namespace fixed via CLI.");
                     } else {
                         std::cerr << "Failed to fix mount namespace.\n";
+                        return 1;
+                    }
+                } else {
+                    std::cerr << "HymoFS not available.\n";
+                    return 1;
+                }
+                return 0;
+            } else if (cli.command == "avc_spoof") {
+                if (cli.args.empty()) {
+                    std::cerr << "Usage: hymod avc_spoof <1|0>\n";
+                    return 1;
+                }
+                bool enable = (cli.args[0] == "1" || cli.args[0] == "true" || cli.args[0] == "on");
+                if (HymoFS::is_available()) {
+                    if (HymoFS::set_avc_log_spoofing(enable)) {
+                        std::cout << "AVC log spoofing " << (enable ? "enabled" : "disabled") << "\n";
+                    } else {
+                        std::cerr << "Failed to set AVC log spoofing\n";
                         return 1;
                     }
                 } else {
