@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "تجاهل عدم تطابق إصدار HymoFS",
     "enableKernelDebug": "تمكين سجل تصحيح النواة",
     "enableStealth": "تمكين وضع التخفي",
+    "avcSpoof": "AVC Log Spoofing",
     "showAdvanced": "إظهار الخيارات المتقدمة",
     "moduleDir": "دليل الوحدات",
     "tempDir": "دليل مؤقت",
@@ -86,7 +87,9 @@
     "customRules": "قواعد مخصصة",
     "addRule": "إضافة قاعدة",
     "removeRule": "إزالة القاعدة",
-    "checkConflicts": "تحقق من التعارضات"
+    "checkConflicts": "تحقق من التعارضات",
+    "noConflicts": "لم يتم العثور على تعارضات",
+    "checkConflictsFail": "فشل التحقق من التعارضات"
   },
   "logs": {
     "title": "سجلات النظام",

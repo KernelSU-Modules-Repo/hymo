@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "HymoFS バージョンの不一致を無視",
     "enableKernelDebug": "カーネルデバッグログを有効化",
     "enableStealth": "ステルスモードを有効化",
+    "avcSpoof": "AVCログの偽装",
     "showAdvanced": "詳細オプションを表示",
     "moduleDir": "モジュールディレクトリ",
     "tempDir": "一時ディレクトリ",
@@ -86,7 +87,9 @@
     "customRules": "カスタムルール",
     "addRule": "ルールを追加",
     "removeRule": "ルールを削除",
-    "checkConflicts": "競合を確認"
+    "checkConflicts": "競合を確認",
+    "noConflicts": "競合は見つかりませんでした",
+    "checkConflictsFail": "競合の確認に失敗しました"
   },
   "logs": {
     "title": "システムログ",

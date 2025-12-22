@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "Ignorar Desajuste de Versión de HymoFS",
     "enableKernelDebug": "Habilitar depuración del kernel",
     "enableStealth": "Habilitar modo sigiloso",
+    "avcSpoof": "AVC Log Spoofing",
     "showAdvanced": "Mostrar opciones avanzadas",
     "moduleDir": "Dir. Módulos",
     "tempDir": "Dir. Temporal",
@@ -86,7 +87,9 @@
     "customRules": "Reglas personalizadas",
     "addRule": "Añadir regla",
     "removeRule": "Eliminar regla",
-    "checkConflicts": "Comprobar conflictos"
+    "checkConflicts": "Comprobar conflictos",
+    "noConflicts": "No se encontraron conflictos",
+    "checkConflictsFail": "Error al comprobar conflictos"
   },
   "logs": {
     "title": "Registros del Sistema",

@@ -4,59 +4,57 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
+#include <sys/syscall.h>
 #include <fcntl.h>
 #include <cerrno>
 #include <cstring>
+#include "hymo_magic.h"
 
 namespace hymo {
 
-const char* HYMO_DEV = HYMO_CTL_DEV;
 
-#define HYMO_IOC_MAGIC 0xE0
-struct hymo_ioctl_arg {
-    const char *src;
-    const char *target;
-    int type;
-};
-
-#define HYMO_IOC_ADD_RULE    _IOW(HYMO_IOC_MAGIC, 1, struct hymo_ioctl_arg)
-#define HYMO_IOC_DEL_RULE    _IOW(HYMO_IOC_MAGIC, 2, struct hymo_ioctl_arg)
-#define HYMO_IOC_HIDE_RULE   _IOW(HYMO_IOC_MAGIC, 3, struct hymo_ioctl_arg)
-#define HYMO_IOC_CLEAR_ALL   _IO(HYMO_IOC_MAGIC, 5)
-#define HYMO_IOC_GET_VERSION _IOR(HYMO_IOC_MAGIC, 6, int)
-
-struct hymo_ioctl_list_arg {
-    char *buf;
-    size_t size;
-};
-#define HYMO_IOC_LIST_RULES  _IOWR(HYMO_IOC_MAGIC, 7, struct hymo_ioctl_list_arg)
-#define HYMO_IOC_SET_DEBUG   _IOW(HYMO_IOC_MAGIC, 8, int)
-#define HYMO_IOC_REORDER_MNT_ID _IO(HYMO_IOC_MAGIC, 9)
-#define HYMO_IOC_SET_STEALTH _IOW(HYMO_IOC_MAGIC, 10, int)
-#define HYMO_IOC_HIDE_OVERLAY_XATTRS _IOW(HYMO_IOC_MAGIC, 11, struct hymo_ioctl_arg)
-#define HYMO_IOC_ADD_MERGE_RULE _IOW(HYMO_IOC_MAGIC, 12, struct hymo_ioctl_arg)
+static HymoFSStatus s_cached_status = HymoFSStatus::NotPresent;
+static bool s_status_checked = false;
 
 int HymoFS::get_protocol_version() {
-    int fd = open(HYMO_DEV, O_RDONLY);
-    if (fd < 0) return -1;
-    
-    int version = ioctl(fd, HYMO_IOC_GET_VERSION);
-    close(fd);
-    
-    // Kernel implementation returns the version directly
-    return version;
+    int ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_GET_VERSION, 0);
+    if (ret < 0) {
+        LOG_ERROR("get_protocol_version failed: " + std::string(strerror(errno)));
+    } else {
+        LOG_INFO("get_protocol_version returned: " + std::to_string(ret));
+    }
+    return ret;
 }
 
 HymoFSStatus HymoFS::check_status() {
-    if (!fs::exists(HYMO_DEV)) return HymoFSStatus::NotPresent;
-    
-    int k_ver = get_protocol_version();
-    if (k_ver < 0) return HymoFSStatus::NotPresent;
+    if (s_status_checked) {
+        return s_cached_status;
+    }
 
-    if (k_ver < EXPECTED_PROTOCOL_VERSION) return HymoFSStatus::KernelTooOld;
-    if (k_ver > EXPECTED_PROTOCOL_VERSION) return HymoFSStatus::ModuleTooOld;
+    int k_ver = get_protocol_version();
+    if (k_ver < 0) {
+        LOG_WARN("HymoFS check_status: NotPresent (syscall failed)");
+        s_cached_status = HymoFSStatus::NotPresent;
+        s_status_checked = true;
+        return HymoFSStatus::NotPresent;
+    }
+
+    if (k_ver < EXPECTED_PROTOCOL_VERSION) {
+        LOG_WARN("HymoFS check_status: KernelTooOld (got " + std::to_string(k_ver) + ", expected " + std::to_string(EXPECTED_PROTOCOL_VERSION) + ")");
+        s_cached_status = HymoFSStatus::KernelTooOld;
+        s_status_checked = true;
+        return HymoFSStatus::KernelTooOld;
+    }
+    if (k_ver > EXPECTED_PROTOCOL_VERSION) {
+        LOG_WARN("HymoFS check_status: ModuleTooOld (got " + std::to_string(k_ver) + ", expected " + std::to_string(EXPECTED_PROTOCOL_VERSION) + ")");
+        s_cached_status = HymoFSStatus::ModuleTooOld;
+        s_status_checked = true;
+        return HymoFSStatus::ModuleTooOld;
+    }
     
+    LOG_INFO("HymoFS check_status: Available (version " + std::to_string(k_ver) + ")");
+    s_cached_status = HymoFSStatus::Available;
+    s_status_checked = true;
     return HymoFSStatus::Available;
 }
 
@@ -65,71 +63,74 @@ bool HymoFS::is_available() {
 }
 
 bool HymoFS::clear_rules() {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    int ret = ioctl(fd, HYMO_IOC_CLEAR_ALL);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Clearing all rules...");
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_CLEAR_ALL, 0) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: clear_rules failed: " + std::string(strerror(errno)));
+    } else {
+        LOG_INFO("HymoFS: clear_rules success");
+    }
+    return ret;
 }
 
 bool HymoFS::add_rule(const std::string& src, const std::string& target, int type) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    
-    struct hymo_ioctl_arg arg = {
+    struct hymo_syscall_arg arg = {
         .src = src.c_str(),
         .target = target.c_str(),
-        .type = (unsigned char)type
+        .type = type
     };
     
-    int ret = ioctl(fd, HYMO_IOC_ADD_RULE, &arg);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Adding rule src=" + src + ", target=" + target + ", type=" + std::to_string(type));
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_ADD_RULE, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: add_rule failed: " + std::string(strerror(errno)));
+    }
+    return ret;
 }
 
 bool HymoFS::add_merge_rule(const std::string& src, const std::string& target) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    
-    struct hymo_ioctl_arg arg = {
+    struct hymo_syscall_arg arg = {
         .src = src.c_str(),
         .target = target.c_str(),
         .type = 0
     };
     
-    int ret = ioctl(fd, HYMO_IOC_ADD_MERGE_RULE, &arg);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Adding merge rule src=" + src + ", target=" + target);
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_ADD_MERGE_RULE, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: add_merge_rule failed: " + std::string(strerror(errno)));
+    }
+    return ret;
 }
 
 bool HymoFS::delete_rule(const std::string& src) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    
-    struct hymo_ioctl_arg arg = {
+    struct hymo_syscall_arg arg = {
         .src = src.c_str(),
         .target = NULL,
         .type = 0
     };
     
-    int ret = ioctl(fd, HYMO_IOC_DEL_RULE, &arg);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Deleting rule src=" + src);
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_DEL_RULE, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: delete_rule failed: " + std::string(strerror(errno)));
+    }
+    return ret;
 }
 
 bool HymoFS::hide_path(const std::string& path) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    
-    struct hymo_ioctl_arg arg = {
+    struct hymo_syscall_arg arg = {
         .src = path.c_str(),
         .target = NULL,
         .type = 0
     };
     
-    int ret = ioctl(fd, HYMO_IOC_HIDE_RULE, &arg);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Hiding path=" + path);
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_HIDE_RULE, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: hide_path failed: " + std::string(strerror(errno)));
+    }
+    return ret;
 }
 
 bool HymoFS::add_rules_from_directory(const fs::path& target_base, const fs::path& module_dir) {
@@ -191,94 +192,95 @@ bool HymoFS::remove_rules_from_directory(const fs::path& target_base, const fs::
 }
 
 std::string HymoFS::get_active_rules() {
-    int fd = open(HYMO_DEV, O_RDONLY);
-    if (fd < 0) return "Error: Cannot open " + std::string(HYMO_CTL_DEV) + "\n";
-    
     size_t buf_size = 128 * 1024; // 128KB buffer
     char* raw_buf = (char*)malloc(buf_size);
     if (!raw_buf) {
-        close(fd);
         return "Error: Out of memory\n";
     }
     memset(raw_buf, 0, buf_size);
     
-    ssize_t bytes_read = read(fd, raw_buf, buf_size - 1);
-    if (bytes_read < 0) {
-        std::string err = "Error: read failed: ";
+    struct hymo_syscall_list_arg arg = {
+        .buf = raw_buf,
+        .size = buf_size
+    };
+
+    LOG_INFO("HymoFS: Listing active rules...");
+    int ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_LIST_RULES, &arg);
+    if (ret < 0) {
+        std::string err = "Error: syscall failed: ";
         err += strerror(errno);
         err += "\n";
+        LOG_ERROR("HymoFS: get_active_rules failed: " + std::string(strerror(errno)));
         free(raw_buf);
-        close(fd);
         return err;
     }
     
-    std::string result(raw_buf, bytes_read);
+    std::string result(raw_buf);
+    LOG_INFO("HymoFS: get_active_rules returned " + std::to_string(result.length()) + " bytes");
 
     free(raw_buf);
-    close(fd);
     return result;
 }
 
 bool HymoFS::set_debug(bool enable) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) {
-        perror("HymoFS: Failed to open device");
-        return false;
-    }
-    
     int val = enable ? 1 : 0;
-    int ret = ioctl(fd, HYMO_IOC_SET_DEBUG, &val);
-    if (ret != 0) {
-        perror("HymoFS: Failed to set debug mode");
+    LOG_INFO("HymoFS: Setting debug=" + std::string(enable ? "true" : "false"));
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_SET_DEBUG, &val) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: set_debug failed: " + std::string(strerror(errno)));
     }
-    close(fd);
-    return ret == 0;
+    return ret;
 }
 
 bool HymoFS::set_stealth(bool enable) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) {
-        perror("HymoFS: Failed to open device");
-        return false;
-    }
-    
     int val = enable ? 1 : 0;
-    int ret = ioctl(fd, HYMO_IOC_SET_STEALTH, &val);
-    if (ret != 0) {
-        perror("HymoFS: Failed to set stealth mode");
+    LOG_INFO("HymoFS: Setting stealth=" + std::string(enable ? "true" : "false"));
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_SET_STEALTH, &val) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: set_stealth failed: " + std::string(strerror(errno)));
     }
-    close(fd);
-    return ret == 0;
+    return ret;
 }
 
 bool HymoFS::fix_mounts() {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) {
-        perror("HymoFS: Failed to open device");
-        return false;
+    LOG_INFO("HymoFS: Fixing mounts (reorder mnt_id)...");
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_REORDER_MNT_ID, 0) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: fix_mounts failed: " + std::string(strerror(errno)));
+    } else {
+        LOG_INFO("HymoFS: fix_mounts success");
     }
-    
-    int ret = ioctl(fd, HYMO_IOC_REORDER_MNT_ID);
-    if (ret != 0) {
-        perror("HymoFS: Failed to reorder mount IDs");
-    }
-    close(fd);
-    return ret == 0;
+    return ret;
 }
 
 bool HymoFS::hide_overlay_xattrs(const std::string& path) {
-    int fd = open(HYMO_DEV, O_RDWR);
-    if (fd < 0) return false;
-    
-    struct hymo_ioctl_arg arg = {
+    struct hymo_syscall_arg arg = {
         .src = path.c_str(),
         .target = NULL,
         .type = 0
     };
     
-    int ret = ioctl(fd, HYMO_IOC_HIDE_OVERLAY_XATTRS, &arg);
-    close(fd);
-    return ret == 0;
+    LOG_INFO("HymoFS: Hiding overlay xattrs for path=" + path);
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_HIDE_OVERLAY_XATTRS, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: hide_overlay_xattrs failed: " + std::string(strerror(errno)));
+    }
+    return ret;
+}
+
+bool HymoFS::set_avc_log_spoofing(bool enabled) {
+    struct hymo_syscall_arg arg = {
+        .src = NULL,
+        .target = NULL,
+        .type = enabled ? 1 : 0
+    };
+    
+    LOG_INFO("HymoFS: Setting AVC log spoofing=" + std::string(enabled ? "true" : "false"));
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_SET_AVC_LOG_SPOOFING, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: set_avc_log_spoofing failed: " + std::string(strerror(errno)));
+    }
+    return ret;
 }
 
 } // namespace hymo

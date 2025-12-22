@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "Ignore HymoFS Version Mismatch",
     "enableKernelDebug": "Enable Kernel Debug Logging",
     "enableStealth": "Enable Stealth Mode",
+    "avcSpoof": "AVC Log Spoofing",
     "showAdvanced": "Show Advanced Options",
     "moduleDir": "Module Directory",
     "tempDir": "Temp Directory",
@@ -86,7 +87,9 @@
     "customRules": "Custom Rules",
     "addRule": "Add Rule",
     "removeRule": "Remove Rule",
-    "checkConflicts": "Check Conflicts"
+    "checkConflicts": "Check Conflicts",
+    "noConflicts": "No conflicts found",
+    "checkConflictsFail": "Failed to check conflicts"
   },
   "logs": {
     "title": "System Logs",

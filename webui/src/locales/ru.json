@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "Игнорировать несоответствие версии HymoFS",
     "enableKernelDebug": "Включить отладку ядра",
     "enableStealth": "Включить режим невидимки",
+    "avcSpoof": "Подмена логов AVC",
     "showAdvanced": "Показать расширенные настройки",
     "moduleDir": "Путь модулей",
     "tempDir": "Временная папка",
@@ -86,7 +87,9 @@
     "customRules": "Пользовательские правила",
     "addRule": "Добавить правило",
     "removeRule": "Удалить правило",
-    "checkConflicts": "Проверить конфликты"
+    "checkConflicts": "Проверить конфликты",
+    "noConflicts": "Конфликтов не найдено",
+    "checkConflictsFail": "Не удалось проверить конфликты"
   },
   "logs": {
     "title": "Системные логи",

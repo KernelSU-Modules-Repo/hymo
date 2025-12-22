@@ -43,6 +43,7 @@
     "ignoreProtocolMismatch": "忽略HymoFS版本不匹配",
     "enableKernelDebug": "启用内核调试日志",
     "enableStealth": "启用隐身模式",
+    "avcSpoof": "AVC日志欺骗",
     "showAdvanced": "显示高级选项",
     "moduleDir": "模块路径",
     "tempDir": "临时路径",
@@ -86,7 +87,9 @@
     "customRules": "自定义挂载",
     "addRule": "添加规则",
     "removeRule": "移除规则",
-    "checkConflicts": "检查冲突"
+    "checkConflicts": "检查冲突",
+    "noConflicts": "未发现冲突",
+    "checkConflictsFail": "检查冲突失败"
   },
   "logs": {
     "title": "运行日志",

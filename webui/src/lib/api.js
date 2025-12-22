@@ -27,6 +27,7 @@ function serializeKvConfig(config) {
   output += `ignore_protocol_mismatch = ${config.ignore_protocol_mismatch ? 'true' : 'false'}\n`;
   output += `enable_kernel_debug = ${config.enable_kernel_debug ? 'true' : 'false'}\n`;
   output += `enable_stealth = ${config.enable_stealth ? 'true' : 'false'}\n`;
+  output += `avc_spoof = ${config.avc_spoof ? 'true' : 'false'}\n`;
   
   if (config.partitions && Array.isArray(config.partitions)) {
     output += `partitions = "${config.partitions.join(',')}"\n`;

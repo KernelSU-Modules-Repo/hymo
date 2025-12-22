@@ -103,6 +103,14 @@
     </label>
   </div>
 
+  <div class="switch-row">
+    <span>{store.L.config.avcSpoof}</span>
+    <label class="md3-switch">
+      <input type="checkbox" bind:checked={store.config.avc_spoof}>
+      <span class="track"><span class="thumb"></span></span>
+    </label>
+  </div>
+
   {#if store.showAdvanced}
   <div class="switch-row">
     <span>{store.L.config.disableUmount}</span>
