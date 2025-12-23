@@ -55,6 +55,7 @@ Config Config::from_file(const fs::path& path) {
             else if (key == "enable_kernel_debug") config.enable_kernel_debug = (value == "true");
             else if (key == "enable_stealth") config.enable_stealth = (value == "true");
             else if (key == "avc_spoof") config.avc_spoof = (value == "true");
+            else if (key == "mirror_path") config.mirror_path = value;
             else if (key == "partitions") {
                 std::stringstream ss(value);
                 std::string part;
@@ -94,6 +95,9 @@ bool Config::save_to_file(const fs::path& path) const {
     file << "enable_kernel_debug = " << (enable_kernel_debug ? "true" : "false") << "\n";
     file << "enable_stealth = " << (enable_stealth ? "true" : "false") << "\n";
     file << "avc_spoof = " << (avc_spoof ? "true" : "false") << "\n";
+    if (!mirror_path.empty()) {
+        file << "mirror_path = \"" << mirror_path << "\"\n";
+    }
     
     // Write partitions
     if (!partitions.empty()) {

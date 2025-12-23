@@ -27,6 +27,7 @@ struct Config {
     bool enable_kernel_debug = false;
     bool enable_stealth = true; // Default to true
     bool avc_spoof = false;
+    std::string mirror_path;
     std::vector<std::string> partitions;
     std::map<std::string, std::string> module_modes;
     std::map<std::string, std::vector<ModuleRuleConfig>> module_rules;

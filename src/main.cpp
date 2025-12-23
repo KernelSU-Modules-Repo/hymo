@@ -611,7 +611,15 @@ int main(int argc, char* argv[]) {
                 
                 if (HymoFS::is_available()) {
                     LOG_INFO("Reloading HymoFS mappings...");
-                    const fs::path MIRROR_DIR = hymo::HYMO_MIRROR_DEV;
+                    
+                    // Determine Mirror Path
+                    std::string effective_mirror_path = hymo::HYMO_MIRROR_DEV;
+                    if (!config.mirror_path.empty()) {
+                        effective_mirror_path = config.mirror_path;
+                    } else if (!config.tempdir.empty()) {
+                        effective_mirror_path = config.tempdir.string();
+                    }
+                    const fs::path MIRROR_DIR = effective_mirror_path;
                     
                     // 1. Scan modules
                     auto module_list = scan_modules(config.moduledir, config);
@@ -705,6 +713,30 @@ int main(int argc, char* argv[]) {
                     LOG_WARN("HymoFS not available, cannot hot reload.");
                 }
                 return 0;
+            } else if (cli.command == "set-mirror") {
+                if (cli.args.empty()) {
+                    std::cerr << "Usage: hymod set-mirror <path>\n";
+                    return 1;
+                }
+                std::string path = cli.args[0];
+                Config config = load_config(cli);
+                config.mirror_path = path;
+                
+                fs::path config_path = cli.config_file.empty() ? (fs::path(BASE_DIR) / "config.toml") : fs::path(cli.config_file);
+                if (config.save_to_file(config_path)) {
+                    std::cout << "Mirror path set to: " << path << "\n";
+                    if (HymoFS::is_available()) {
+                        if (HymoFS::set_mirror_path(path)) {
+                            std::cout << "Applied mirror path to kernel.\n";
+                        } else {
+                            std::cerr << "Failed to apply mirror path to kernel.\n";
+                        }
+                    }
+                } else {
+                    std::cerr << "Failed to save config.\n";
+                    return 1;
+                }
+                return 0;
             } else if (cli.command != "mount") {
                 std::cerr << "Unknown command: " << cli.command << "\n";
                 print_help();
@@ -762,6 +794,24 @@ int main(int argc, char* argv[]) {
              // **HymoFS Fast Path**
             LOG_INFO("Mode: HymoFS Fast Path");
             
+            // Determine Mirror Path
+            // Priority: config.mirror_path > config.tempdir > Default (/dev/hymo_mirror)
+            std::string effective_mirror_path = hymo::HYMO_MIRROR_DEV;
+            if (!config.mirror_path.empty()) {
+                effective_mirror_path = config.mirror_path;
+            } else if (!config.tempdir.empty()) {
+                effective_mirror_path = config.tempdir.string();
+            }
+
+            // Apply Mirror Path to Kernel
+            if (effective_mirror_path != hymo::HYMO_MIRROR_DEV) {
+                if (HymoFS::set_mirror_path(effective_mirror_path)) {
+                    LOG_INFO("Applied custom mirror path: " + effective_mirror_path);
+                } else {
+                    LOG_WARN("Failed to apply custom mirror path: " + effective_mirror_path);
+                }
+            }
+            
             // Apply Kernel Debug Setting
             if (config.enable_kernel_debug) {
                 if (HymoFS::set_debug(true)) {
@@ -781,7 +831,7 @@ int main(int argc, char* argv[]) {
             // **Mirror Strategy (Tmpfs/Ext4)**
             // To avoid SELinux/permission issues on /data, we mirror active modules to a tmpfs or ext4 image
             // and inject from there.
-            const fs::path MIRROR_DIR = hymo::HYMO_MIRROR_DEV;
+            const fs::path MIRROR_DIR = effective_mirror_path;
             fs::path img_path = fs::path(BASE_DIR) / "modules.img";
             bool mirror_success = false;
             
