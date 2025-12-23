@@ -125,6 +125,10 @@ jobs:
         id: meta
         run: |
           PROP_FILE="module/module.prop"
+          
+          # Backup updated module.prop
+          cp "$PROP_FILE" /tmp/module.prop
+          
           VERSION=$(grep "^version=" "$PROP_FILE" | cut -d= -f2)
           VERSION_CODE=$(grep "^versionCode=" "$PROP_FILE" | cut -d= -f2)
           
@@ -185,8 +189,9 @@ jobs:
           
           mv /tmp/update.json update.json
           mv /tmp/changelog.md changelog.md
+          mv /tmp/module.prop module/module.prop
           
-          git add update.json changelog.md
+          git add update.json changelog.md module/module.prop
           
           if git diff --staged --quiet; then
             echo "No changes to commit"
