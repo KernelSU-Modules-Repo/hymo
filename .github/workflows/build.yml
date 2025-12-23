@@ -47,6 +47,7 @@ jobs:
           echo "MODULE_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Sign Module (Internal)
+        if: github.actor == 'Anatdx'
         env:
           MODULE_PRIVATE_KEY: ${{ secrets.MODULE_PRIVATE_KEY }}
         run: |
@@ -81,6 +82,7 @@ jobs:
           fi
 
       - name: Import GPG key
+        if: github.actor == 'Anatdx'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -89,6 +91,7 @@ jobs:
           trust_level: 5
       
       - name: Sign Module with GPG
+        if: github.actor == 'Anatdx'
         run: |
           
           cd out

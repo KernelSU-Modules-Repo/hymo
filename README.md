@@ -4,35 +4,35 @@
 ![Platform](https://img.shields.io/badge/Platform-Android%20(KernelSU)-3DDC84?style=flat-square&logo=android)
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)
 
-> **Hymo** is a high-performance hybrid mount meta-module designed for KernelSU. It refactors core logic with native C++ and introduces HymoFS, which hijacks the kernel file system to use VFS mapping directly instead of mounting, achieving a realistic mounting effect.
+> **Hymo** is an experimental hybrid mount meta-module designed for KernelSU. It refactors core logic with native C++ and introduces HymoFS, which attempts to hijack the kernel file system to use VFS mapping. Note that this approach is intrusive and may cause system instability.
 
 ---
 **[ 🇨🇳 中文 ](docs/README_ZH.md)**
 
 ## Core Architecture
 
-Hymo is not just a mount script; it is a complete native daemon designed to solve performance bottlenecks and compatibility issues of traditional shell scripts in complex mounting scenarios.
+Hymo is a native daemon designed to handle complex mounting scenarios, though it may introduce new compatibility issues.
 
 ### 1. Native C++ Engine
-*   **High Performance**: Core logic is written entirely in C++, discarding inefficient Shell script calls.
-*   **Direct System Calls**: Uses modern Linux Mount APIs like `fsopen`, `fsconfig`, `fsmount`, `move_mount` directly, bypassing `mount` command-line limitations for finer mount control.
-*   **Blazing Fast Startup**: Optimized execution flow ensures module loading adds almost no overhead to system boot time.
+*   **Native Implementation**: Core logic is written in C++ to avoid Shell script dependencies, though this introduces binary compatibility risks.
+*   **Direct System Calls**: Uses Linux Mount APIs like `fsopen`, `fsconfig`, `fsmount`, `move_mount` directly. This bypasses standard `mount` safeguards and may lead to undefined behavior if misused.
+*   **Startup Impact**: While optimized, the module loading process inevitably adds overhead to the system boot time and may delay startup.
 
 ### 2. HymoFS & Multi-Mode Engine
-Hymo introduces proprietary **HymoFS** technology, building a three-tier mount strategy:
-*   **HymoFS (Kernel Mode)**: Opens a kernel interface after patching the kernel source, directly hijacking the underlying file system to implement file mapping instead of mounting, allowing for hot recovery.
-*   **OverlayFS (General Mode)**: The preferred solution in standard environments, utilizing kernel OverlayFS features for file-level merging.
+Hymo introduces experimental **HymoFS** technology, building a complex mount strategy:
+*   **HymoFS (Kernel Mode)**: Requires patching the kernel source to open a kernel interface. It hijacks the underlying file system to implement file mapping. This is a significant kernel modification and may compromise system integrity or cause data loss.
+*   **OverlayFS (General Mode)**: The standard solution, utilizing kernel OverlayFS features for file-level merging.
 *   **Magic Mount (Compatibility Mode)**: A traditional Bind Mount fallback for old kernels or special partitions.
-*   **Dynamic Decision**: The daemon automatically detects the environment to select the best mode, or users can force a specific mode via WebUI.
+*   **Dynamic Decision**: The daemon attempts to detect the environment to select a mode, or users can force a specific mode via WebUI.
 
-### 3. Smart Sync
-*   **Incremental Update**: Automatically compares module `module.prop` and file timestamps at startup.
-*   **Zero Redundant I/O**: Only synchronizes changed module files to the working directory, significantly reducing I/O pressure during startup and extending flash memory life.
+### 3. Synchronization
+*   **Incremental Update**: Attempts to compare module `module.prop` and file timestamps at startup.
+*   **I/O Operations**: Synchronizes changed module files to the working directory. While intended to reduce I/O, the checking process itself consumes resources and may wear flash memory over time.
 
-### 4. Smart Storage Backend
-*   **Smart Space Management**: Automatically detects kernel Tmpfs support during installation. If supported, it skips creating Ext4 images and uses the in-memory file system directly, saving user storage space.
-*   **Tmpfs Priority**: Prioritizes building module images in memory at runtime, offering the fastest speed and "burn after reboot" (high stealth).
-*   **Ext4 Image Fallback**: Automatically falls back to `modules.img` loopback image only when the kernel does not support Tmpfs, ensuring functional availability.
+### 4. Storage Backend
+*   **Space Management**: Detects kernel Tmpfs support. If supported, it uses the in-memory file system, which consumes system RAM and may lead to out-of-memory (OOM) situations on devices with limited memory.
+*   **Tmpfs Usage**: Builds module images in memory at runtime. This is volatile and data will be lost on reboot.
+*   **Ext4 Image Fallback**: Falls back to `modules.img` loopback image if Tmpfs is unavailable, which consumes permanent storage space.
 
 ---
 
@@ -55,9 +55,9 @@ curl -LSs https://raw.githubusercontent.com/Anatdx/HymoFS/main/setup.sh | bash -
 ```
 
 ### Features
-*   **Auto Branch Selection**: Automatically detects your kernel version (6.1 or 6.6) and switches to the appropriate branch (`android14_6.1` or `android15_6.6`).
-*   **KernelSU Detection**: Automatically detects KernelSU and configures `CONFIG_HYMOFS_USE_KSU`.
-*   **SUSFS Integration**: Automatically detects SUSFS, and if found (or `with-susfs` is specified), applies compatibility patches.
+*   **Branch Selection**: Attempts to detect your kernel version (6.1 or 6.6) and switch branches. This detection may fail on non-standard kernels.
+*   **KernelSU Detection**: Tries to detect KernelSU.
+*   **SUSFS Integration**: Attempts to apply compatibility patches if SUSFS is detected. This integration is fragile and may break with updates to either project.
 
 **Build Commands**:
 ```bash
@@ -69,13 +69,13 @@ make testzip
 ```
 
 **Install**:
-The generated zip package can be flashed directly in KernelSU Manager.
+The generated zip package can be flashed in KernelSU Manager, assuming the manager supports the format.
 
 ---
 
 ## CLI Usage (hymod)
 
-Hymo comes with a powerful command-line tool `hymod` for managing the daemon and HymoFS rules.
+Hymo includes a command-line tool `hymod` for debugging the daemon and HymoFS rules.
 
 ### Basic Usage
 ```bash
@@ -83,35 +83,35 @@ hymod [OPTIONS] [COMMAND]
 ```
 
 ### Commands
-*   `mount`: Mount all modules (Default action).
-*   `modules`: List all active modules.
-*   `storage`: Show current storage status (Tmpfs/Ext4).
-*   `reload`: Reload HymoFS mappings (scans for changes).
-*   `clear`: Clear all HymoFS mappings (Emergency Reset).
-*   `list`: List all active HymoFS kernel rules.
-*   `version`: Show HymoFS protocol and config version.
+*   `mount`: Attempt to mount all modules (Default action).
+*   `modules`: List modules that Hymo believes are active.
+*   `storage`: Show current storage status.
+*   `reload`: Attempt to reload HymoFS mappings.
+*   `clear`: Clear all HymoFS mappings (Use this if the system becomes unstable).
+*   `list`: List active HymoFS kernel rules.
+*   `version`: Show protocol version.
 *   `gen-config`: Generate a default configuration file.
 *   `show-config`: Display the current configuration.
-*   `add <mod_id>`: Manually add a specific module's rules.
-*   `delete <mod_id>`: Manually remove a specific module's rules.
-*   `set-mirror <path>`: Set custom mirror path for HymoFS.
-*   `raw <cmd> ...`: Execute raw HymoFS low-level commands (add/hide/delete/merge).
+*   `add <mod_id>`: Manually add a module's rules.
+*   `delete <mod_id>`: Manually remove a module's rules.
+*   `set-mirror <path>`: Set custom mirror path.
+*   `raw <cmd> ...`: Execute raw HymoFS low-level commands. **Warning: Improper use will crash the system.**
 
 ### Options
 *   `-c, --config FILE`: Specify a custom config file path.
-*   `-m, --moduledir DIR`: Specify the module directory (default: `/data/adb/modules`).
-*   `-v, --verbose`: Enable verbose logging for debugging.
-*   `-p, --partition NAME`: Add a partition to scan (can be used multiple times).
+*   `-m, --moduledir DIR`: Specify the module directory.
+*   `-v, --verbose`: Enable verbose logging.
+*   `-p, --partition NAME`: Add a partition to scan.
 
 ---
 
 ## Credits
 
-*   **[Meta-Hybrid Mount](https://github.com/YuzakiKokuban/meta-hybrid_mount)**: Inspiration and prototype basis for this project.
-*   **KernelSU**: Powerful Root solutions.
+*   **[Meta-Hybrid Mount](https://github.com/YuzakiKokuban/meta-hybrid_mount)**: Prototype basis.
+*   **KernelSU**: Root solution.
 *   **Libcxx**: Android NDK C++ standard library.
-*   **All contributors to this project**: Thank you for your efforts.
+*   **Contributors**: Thanks for testing.
 
 ---
 
-> **Disclaimer**: This project involves low-level system modifications. Please ensure data backup before use. The developer is not responsible for any data loss or device damage caused by using this module.
+> **Disclaimer**: This project involves dangerous low-level system modifications. **Data loss is likely.** Please ensure data backup before use. The developer is not responsible for any damage, bricked devices, or nuclear war caused by using this module.
