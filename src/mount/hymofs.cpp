@@ -118,6 +118,21 @@ bool HymoFS::delete_rule(const std::string& src) {
     return ret;
 }
 
+bool HymoFS::set_mirror_path(const std::string& path) {
+    struct hymo_syscall_arg arg = {
+        .src = path.c_str(),
+        .target = NULL,
+        .type = 0
+    };
+    
+    LOG_INFO("HymoFS: Setting mirror path=" + path);
+    bool ret = syscall(SYS_reboot, HYMO_MAGIC1, HYMO_MAGIC2, HYMO_CMD_SET_MIRROR_PATH, &arg) == 0;
+    if (!ret) {
+        LOG_ERROR("HymoFS: set_mirror_path failed: " + std::string(strerror(errno)));
+    }
+    return ret;
+}
+
 bool HymoFS::hide_path(const std::string& path) {
     struct hymo_syscall_arg arg = {
         .src = path.c_str(),
