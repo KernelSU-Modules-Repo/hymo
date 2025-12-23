@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       kernelsu:
-        specifier: ^2.1.1
-        version: 2.1.1
+        specifier: ^3.0.0
+        version: 3.0.0
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
@@ -390,8 +390,8 @@ packages:
   is-reference@3.0.3:
     resolution: {integrity: sha512-ixkJoqQvAP88E6wLydLGGqCJsrFUnqoH6HnaczB8XmDH1oaWU+xxdptvikTgaEhtZ53Ky6YXiBuUI2WXLMCwjw==}
 
-  kernelsu@2.1.1:
-    resolution: {integrity: sha512-P5kC9E4NLzdZbU2O6AysMWC2P2a2TM2VU4ugKjh262bm6Q+FelKhcfdbJD/+ZI7m4OAtldb+8U2c7ZxvQvJRdQ==}
+  kernelsu@3.0.0:
+    resolution: {integrity: sha512-7BUHzVe7MOaYV6h9sbhPAf9hFnkXy4Ea1fC1wOF4vrwjExIcFi0OQLSphdZ0sebmIfb14/rgpMXagCYM8RmepQ==}
 
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
@@ -740,7 +740,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.8
 
-  kernelsu@2.1.1: {}
+  kernelsu@3.0.0: {}
 
   locate-character@3.0.0: {}
 
