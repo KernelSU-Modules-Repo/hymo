@@ -161,15 +161,19 @@ jobs:
             git push origin master
           fi
 
-      - name: Send to Telegram
-        if: success()
+      - name: "📤 Upload to telegram | 上传至Telegram群组"
         run: |
-          cd out
-          ZIP_FILE=$(ls *.zip | head -n 1)
-          
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@$ZIP_FILE" \
-               -F "caption=Hymo Build ${{ env.MODULE_VERSION }} Success!
-               Commit: ${{ github.sha }}
-               Ref: ${{ github.ref }}" \
-               https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
+          if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            echo "📤 正在上传到Telegram..."
+            cd ${{ github.workspace }}
+            pip3 install telethon
+            python3 ${{ github.workspace }}/script/buildbot.py "./out/*.zip"
+            echo "✅ 文件已上传到Telegram"
+          fi
+        env:
+          CHATID: ${{secrets.TELEGRAM_CHAT_ID}}
+          MESSAGE_THREAD_ID: ${{secrets.MESSAGE_THREAD_ID}}
+          BOT_TOKEN: ${{secrets.TELEGRAM_BOT_TOKEN}}
+          MODULE_VER: ${{ github.ref_name }}
+          UPDATE: |
+            $(cat /tmp/changelog.md | sed '1d' | sed '/^$/d') 
