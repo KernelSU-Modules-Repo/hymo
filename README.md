@@ -47,18 +47,18 @@ Hymo uses a standard Makefile build system and supports cross-compilation.
 
 **HymoFS Patch**
 
-If you need to use HymoFS, please add the following to your compilation script when compiling the kernel:
+HymoFS provides a smart `setup.sh` script for easy integration into your kernel source.
+
+### One-Click Install
 ```bash
-wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs.patch
-patch -p1 -F 3 < hymofs.patch
-echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to defconfig
+curl -LSs https://raw.githubusercontent.com/Anatdx/HymoFS/main/setup.sh | bash -s defconfig arch/arm64/configs/gki_defconfig
 ```
-Or if you are using susfs, add this **AFTER** the susfs patch：
-```bash
-wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs_with_susfs.patch
-patch -p1 -F 3 < yhymofs_with_susfs.patch
-echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to defconfig
-```
+
+### Features
+*   **Auto Branch Selection**: Automatically detects your kernel version (6.1 or 6.6) and switches to the appropriate branch (`android14_6.1` or `android15_6.6`).
+*   **KernelSU Detection**: Automatically detects KernelSU and configures `CONFIG_HYMOFS_USE_KSU`.
+*   **SUSFS Integration**: Automatically detects SUSFS, and if found (or `with-susfs` is specified), applies compatibility patches.
+
 **Build Commands**:
 ```bash
 # Compile all architectures and package
@@ -94,7 +94,8 @@ hymod [OPTIONS] [COMMAND]
 *   `show-config`: Display the current configuration.
 *   `add <mod_id>`: Manually add a specific module's rules.
 *   `delete <mod_id>`: Manually remove a specific module's rules.
-*   `raw <cmd> ...`: Execute raw HymoFS low-level commands (add/hide/inject/delete).
+*   `set-mirror <path>`: Set custom mirror path for HymoFS.
+*   `raw <cmd> ...`: Execute raw HymoFS low-level commands (add/hide/delete/merge).
 
 ### Options
 *   `-c, --config FILE`: Specify a custom config file path.

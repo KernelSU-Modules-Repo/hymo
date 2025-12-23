@@ -51,6 +51,7 @@ static void print_help() {
     std::cout << "  set-mode <mod_id> <mode>  Set mount mode for a module (auto, hymofs, overlay, magic, none)\n";
     std::cout << "  add-rule <mod_id> <path> <mode> Add a custom mount rule for a module\n";
     std::cout << "  remove-rule <mod_id> <path> Remove a custom mount rule for a module\n";
+    std::cout << "  set-mirror <path> Set custom mirror path for HymoFS\n";
     std::cout << "  fix-mounts      Fix mount namespace issues (reorder mnt_id)\n";
     std::cout << "  sync-partitions Scan modules and auto-add new partitions to config\n\n";
     std::cout << "Options:\n";
@@ -512,6 +513,12 @@ int main(int argc, char* argv[]) {
                         return 1;
                     }
                     success = HymoFS::delete_rule(cli.args[1]);
+                } else if (cmd == "merge") {
+                    if (cli.args.size() < 3) {
+                        std::cerr << "Usage: hymod raw merge <src> <target>\n";
+                        return 1;
+                    }
+                    success = HymoFS::add_merge_rule(cli.args[1], cli.args[2]);
                 } else if (cmd == "clear") {
                     success = HymoFS::clear_rules();
                 } else {

@@ -58,6 +58,40 @@ jobs:
           echo "Building C++ version..."
           make zip
 
+      - name: Sign Module (Internal)
+        env:
+          MODULE_PRIVATE_KEY: ${{ secrets.MODULE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$MODULE_PRIVATE_KEY" ]; then
+            echo "⚠️ No MODULE_PRIVATE_KEY secret found. Skipping internal signing."
+          else
+            echo "🔐 Found private key, performing internal signing..."
+            
+            # Install dependencies
+            pip3 install cryptography
+            
+            # Write private key
+            echo "$MODULE_PRIVATE_KEY" > private.pem
+            
+            # Generate Certificate (Self-signed) from Private Key
+            openssl req -new -x509 -key private.pem -out certificate.pem -days 10000 \
+              -subj "/C=CN/ST=Hymo/L=Hymo/O=Hymo/OU=Hymo/CN=Hymo Module"
+              
+            # Locate Zip
+            ZIP_FILE=$(ls out/*.zip | head -n 1)
+            echo "Signing $ZIP_FILE..."
+            
+            # Run signing script
+            python3 script/sign_zip.py "$ZIP_FILE" "out/signed.zip" private.pem certificate.pem
+            
+            # Replace original with signed
+            mv "out/signed.zip" "$ZIP_FILE"
+            
+            # Cleanup
+            rm private.pem certificate.pem
+            echo "✅ Internal signing complete."
+          fi
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
@@ -162,6 +196,7 @@ jobs:
           fi
 
       - name: "📤 Upload to telegram | 上传至Telegram群组"
+        if: github.repository == 'Anatdx/hymo'
         run: |
           if [ ! -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
             echo "📤 正在上传到Telegram..."

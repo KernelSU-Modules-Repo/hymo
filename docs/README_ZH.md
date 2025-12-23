@@ -48,18 +48,17 @@ Hymo 使用标准的 Makefile 构建系统，支持交叉编译。
 
 **HymoFS补丁**
 
-如果需要使用HymoFS,请在编译内核时在编译脚本中加入：
+HymoFS 提供了一个智能的 `setup.sh` 脚本，用于轻松集成到您的内核源码中。
+
+### 一键安装
 ```bash
-wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs.patch
-patch -p1 -F 3 < hymofs.patch
-echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to defconfig
+curl -LSs https://raw.githubusercontent.com/Anatdx/HymoFS/main/setup.sh | bash -s defconfig arch/arm64/configs/gki_defconfig
 ```
-或者如果你用SUSFS,请把在编译脚本中这段放到SUSFS补丁的**后面**：
-```bash
-wget https://raw.githubusercontent.com/Anatdx/HymoFS/refs/heads/android15_6.6/patch/hymofs_with_susfs.patch
-patch -p1 -F 3 < hymofs_with_susfs.patch
-echo "CONFIG_HYMOFS=y" >> ./common/arch/arm64/configs/gki_defconfig # Write to defconfig
-```
+
+### 功能特性
+*   **自动分支选择**: 自动检测您的内核版本（6.1 或 6.6）并切换到相应的分支（`android14_6.1` 或 `android15_6.6`）。
+*   **KernelSU 检测**: 自动检测 KernelSU 并配置 `CONFIG_HYMOFS_USE_KSU`。
+*   **SUSFS 集成**: 自动检测 SUSFS，如果发现（或指定了 `with-susfs`），则应用兼容补丁。
 
 **编译命令**：
 ```bash
@@ -96,7 +95,8 @@ hymod [选项] [命令]
 *   `show-config`: 显示当前配置。
 *   `add <mod_id>`: 手动添加指定模块的规则。
 *   `delete <mod_id>`: 手动删除指定模块的规则。
-*   `raw <cmd> ...`: 执行原始 HymoFS 底层命令 (add/hide/inject/delete)。
+*   `set-mirror <path>`: 设置 HymoFS 的自定义镜像路径。
+*   `raw <cmd> ...`: 执行原始 HymoFS 底层命令 (add/hide/delete/merge)。
 
 ### 选项
 *   `-c, --config FILE`: 指定自定义配置文件路径。
