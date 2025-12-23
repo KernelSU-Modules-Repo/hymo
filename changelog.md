@@ -1,6 +1,6 @@
-## v1.5.0
+## v1.5.1
 
-Changes since v1.4.0:
-* Merge pull request #31 from Anatdx/feat
-* feat: Add AVC log spoofing functionality and enhance HymoFS commands
-* [skip ci] Update KernelSU json, changelog for v1.4.0
+Changes since v1.5.0:
+* feat: Implement custom mirror path support and WebUI integration
+* feat: Implement custom mirror path support and WebUI integration
+* [skip ci] Update KernelSU json, changelog for v1.5.0
