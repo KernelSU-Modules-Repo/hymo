@@ -107,7 +107,6 @@ hymod [OPTIONS] [COMMAND]
 
 ## Credits
 
-*   **[Meta-Hybrid Mount](https://github.com/YuzakiKokuban/meta-hybrid_mount)**: Prototype basis.
 *   **KernelSU**: Root solution.
 *   **Libcxx**: Android NDK C++ standard library.
 *   **Contributors**: Thanks for testing.
